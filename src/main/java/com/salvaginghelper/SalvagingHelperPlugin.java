@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
-import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -28,12 +27,9 @@ import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import com.salvaginghelper.Crewmate.Activity;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.http.api.item.ItemPrice;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.Instant;
@@ -61,11 +57,11 @@ public class SalvagingHelperPlugin extends Plugin
 {
     //region Variable Declarations
     private Path LOG_FILE_PATH_VARBIT;
-	private VarbitLookupTable VarbNameTable;
-	private VarbitLookupTable VarpNameTable;
-	private VarbitLookupTable VBLT;
-	private VarbitLookupTable VPLT;
-	public VarbitLookupTable ObjectTable;
+	private LookupTable VarbNameTable;
+	private LookupTable VarpNameTable;
+	private LookupTable VBLT;
+	private LookupTable VPLT;
+	public LookupTable ObjectTable;
 	private static final int VARBIT_WHITELIST = 2;
 	private static final int VARBIT_BLACKLIST = 3;
 	private static final int VARBIT_SAILING_LIST = 4;
@@ -79,6 +75,8 @@ public class SalvagingHelperPlugin extends Plugin
 			60472, 60474, 60476, 60478));
 	public final static ArrayList<Integer> inactiveShipwreckIds = new ArrayList<>(List.of(60465, 60467, 60469, 60471,
 			60473, 60475, 60477, 60479));
+	public final static ArrayList<Integer> salvageItemIds = new ArrayList<>(List.of(32847, 32849, 32851, 32853, 32855,
+			32857, 32859, 32861));
 
 	// Status variables about one's current voyage
 	List<Crewmate> activeCrewmates = new ArrayList<>(5);
@@ -156,7 +154,7 @@ public class SalvagingHelperPlugin extends Plugin
 		debug = config.debugModeEnabled();
 
 		// Mappings
-		ObjectTable = new VarbitLookupTable("src/main/resources/sailingobjects.properties");
+		ObjectTable = new LookupTable("src/main/resources/sailingobjects.properties");
 
 		activeCrewmates.add(0, null);
 		activeCrewmates.add(1, null);
@@ -526,9 +524,11 @@ public class SalvagingHelperPlugin extends Plugin
 				return;
 			case 95: // bank
 				return;
-			case 964: // ???? SAILING_BOAT_2_CARGOHOLD
+			case 964: // ???? SAILING_BOAT_2_CARGOHOLD ???????
 				return;
 			case 33732: // cargo hold
+				actionHandler.cargoHoldNeedsUpdate = true;
+				actionHandler.setCargoHold(container);
 				return;
 			case 33733: // cargo hold also...?
 				return;

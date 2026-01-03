@@ -8,22 +8,22 @@ import java.io.InputStream;
 
 // Values taken from net.runelite.api.gameval.* on 12/16/2025
 
-public class VarbitLookupTable {
+public class LookupTable {
 
     private Map<String, String> LOOKUP_TABLE;
-    Properties varbitProperties;
+    Properties objectProperties;
 
-    public VarbitLookupTable(String filePath) {
-        varbitProperties = new Properties();
+    public LookupTable(String filePath) {
+        objectProperties = new Properties();
         try (InputStream input = new FileInputStream(filePath)){
-            varbitProperties.load(input);
+            objectProperties.load(input);
         } catch (IOException e) {
             return;
         }
-        LOOKUP_TABLE = new HashMap<String, String>((Map)varbitProperties);
+        LOOKUP_TABLE = new HashMap<String, String>((Map) objectProperties);
     }
 
-    public String toGameVal(int varbitId) {
+    public String toVal(int varbitId) {
         return LOOKUP_TABLE.getOrDefault(Integer.toString(varbitId), "-2");
     }
 }

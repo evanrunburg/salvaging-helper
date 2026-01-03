@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.commons.lang3.CharSetUtils.count;
+
 public class ActionHandler {
 
     public enum Instruction {
@@ -91,6 +93,16 @@ public class ActionHandler {
     private boolean containsCargoHoldLoot = false;
 
 
+    @Setter
+    private ItemContainer cargoHold;
+    private ArrayList<Item> cargoContainerItems = new ArrayList<>();
+    private int cargoHoldCapacity = 0;
+    private int cargoHoldInventoryId = 33732;
+    public boolean cargoHoldNeedsUpdate = false;
+    private boolean cargoHoldFull;
+    private boolean cargoHoldContainsSalvage;
+
+
     //endregion
 
     //TODO:  This one drives what the client suggests we do on the screen, so we want to be careful with it
@@ -112,13 +124,13 @@ public class ActionHandler {
 
         Instruction newInstruction = currentInstruction;
 
-        // Rebuild if needed
         if (flagRebuild) {
             rebuild(plugin, client);
             flagRebuild = false;
         }
 
         processInventoryItems();
+        processCargoHold();
 
         // Set up to perform the logic all at once cleanly
         int activeHooks = countHooks("Active");
@@ -228,9 +240,9 @@ public class ActionHandler {
         return -1;
     }
 
-    public void processObject(GameObject obj, VarbitLookupTable map, Boat boat) {
+    public void processObject(GameObject obj, LookupTable map, Boat boat) {
         if (obj != null) {
-            switch (map.toGameVal(obj.getId())) {
+            switch (map.toVal(obj.getId())) {
                 case "1": // Shipwrecks (active)
                     objectHighlightMap.put(obj, clear); // new Color(129, 255, 148);
                     if (!activeShipwrecks.contains(obj)) { activeShipwrecks.add(obj); }
@@ -432,7 +444,7 @@ public class ActionHandler {
         }
     }
 
-    public int countHooks(String type) {
+    private int countHooks(String type) {
         int activeHooks = 0;
         int inactiveHooks = 0;
         ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13575, 13582));
@@ -452,7 +464,7 @@ public class ActionHandler {
         else { return -1; }
     }
 
-    public int closestWreckDist(Client client) {
+    private int closestWreckDist(Client client) {
         int closestActiveShipwreckDistance = 100000;
         for (GameObject wreck : activeShipwrecks) {
             int dist = wreck.getLocalLocation().distanceTo(client.getLocalPlayer().getLocalLocation());
@@ -461,5 +473,13 @@ public class ActionHandler {
             }
         }
         return closestActiveShipwreckDistance;
+    }
+
+    private void processCargoHold() {
+        if (!cargoHoldNeedsUpdate) { return; }
+        cargoContainerItems.addAll(List.of(cargoHold.getItems()));
+        cargoHoldCapacity = cargoHold.size();
+        cargoHoldContainsSalvage = plugin.salvageItemIds.stream().anyMatch(salvId -> cargoHold.contains(salvId));
+        cargoHoldNeedsUpdate = false;
     }
 }

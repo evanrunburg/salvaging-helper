@@ -3,10 +3,10 @@ package com.salvaginghelper;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import net.runelite.api.Client;
-import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
@@ -53,6 +53,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final ImageIcon ICON_RESET = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_restart_20px.png"));
     private final ImageIcon ICON_IMPORT = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_download_20px.png"));
     private final ImageIcon ICON_EXPORT = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_upload_20px.png"));
+    private final ImageIcon ICON_SETTINGS = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_settings_20px.png"));
+
 
     private final int SIDEBAR_WIDTH = 249;
     private final int SIDEBAR_INCLUDING_SCROLL = 230;
@@ -81,6 +83,9 @@ public class SalvagingHelperPanel extends PluginPanel {
 
     //@Inject
     private ClientThread clientThread;
+
+    @Inject
+    private ClientToolbar clientToolbar;
 
     //endregion
 
@@ -166,11 +171,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     //region Build: Loot Panel
     public JPanel buildLootPanel() {
         JPanel lootContainer = new JPanel(new BorderLayout(0, 0));
-        createJPanelListener(lootContainer, "Loot Panel Container", "");
         JPanel toolbarPanel = new JPanel();
-        createJPanelListener(toolbarPanel, "Loot Toolbar Panel", "");
         JPanel contentPanel = new JPanel();
-        createJPanelListener(contentPanel, "Loot Content Panel", "");
 
         //region Toolbar and Buttons
         toolbarPanel.setLayout(new BoxLayout(toolbarPanel, BoxLayout.X_AXIS));
@@ -263,8 +265,6 @@ public class SalvagingHelperPanel extends PluginPanel {
         categoryPanel.setPreferredSize(new Dimension(223, 45));
         categoryPanel.setMinimumSize(new Dimension(223, 45));
 
-        //categoryPanel.setBackground(SALVAGE_PANEL_COLOR); // TODO a
-
         categorySubPanel.add(categoryIcon);
         categorySubPanel.add(categoryTitle);
 
@@ -299,8 +299,6 @@ public class SalvagingHelperPanel extends PluginPanel {
                public void mouseExited(MouseEvent e) {
                    categoryPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
                    categorySubPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-                   //categoryPanel.setBackground(SALVAGE_PANEL_COLOR);
-                   //categorySubPanel.setBackground(SALVAGE_PANEL_COLOR);
                    categoryPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
                }
         });
