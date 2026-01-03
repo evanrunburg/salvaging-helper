@@ -101,6 +101,9 @@ public class Boat {
             setHookStarboard(newHook);
             setHookStarboardType(HookType.MITHRIL_HOOK);
             objToHookType.put(newHook, HookType.MITHRIL_HOOK);
+        } else if (newHook.getId()==60491) {
+            setHookStarboard(newHook);
+            setHookStarboardType(HookType.IRON_HOOK);
         }
     }
 

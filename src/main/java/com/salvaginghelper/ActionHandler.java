@@ -133,7 +133,8 @@ public class ActionHandler {
         // all hooks inactive, boat not moving, closest shipwreck
         int activeHooks = 0;
         int inactiveHooks = 0;
-        ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13565, 13567, 13572, 13579)); //13574, 13581 wrong?
+        ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13575, 13582));
+                //13565, 13567, 13572, 13579)); //13574, 13581 wrong?
         if (activeBoat.getHookPort() != null) {
             if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookPort()))) {
                 inactiveHooks++;
@@ -144,6 +145,7 @@ public class ActionHandler {
                 inactiveHooks++;
             } else { activeHooks++; }
         }
+        plugin.sendChatMessage("Active, inactive hooks: "+activeHooks+", "+inactiveHooks);
         // TODO: # crewmates assigned to salvage > 0
         if (inactiveHooks>0 && activeBoat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
                 && closestActiveShipwreckDistance>1500) {
