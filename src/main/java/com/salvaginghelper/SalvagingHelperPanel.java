@@ -99,7 +99,6 @@ public class SalvagingHelperPanel extends PluginPanel {
         this.clientThread = clientThread;
 
         JPanel container = new JPanel();
-        createJPanelListener(container, "Full-Panel Container", "");
         container.setLayout(new BorderLayout());
 
         JScrollPane scrollPane = getScrollPane();
@@ -107,15 +106,10 @@ public class SalvagingHelperPanel extends PluginPanel {
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         JPanel tabGroupPanel = new JPanel();
-        createJPanelListener(tabGroupPanel, "Tab Group Panel", "");
         JPanel displayPanel = new JPanel();
-        createJPanelListener(displayPanel, "Display Panel", "");
         JPanel generalTabPanel = new JPanel();
-        createJPanelListener(generalTabPanel, "General Tab Panel", "");
         JPanel lootTabPanel = buildLootPanel();
-        createJPanelListener(lootTabPanel, "Loot Tab Panel", "");
-        JPanel debugTabPanel = new JPanel();
-        createJPanelListener(debugTabPanel, "Debug Tab Panel", "");
+        JPanel debugTabPanel = buildDebugPanel();
 
         displayPanel.setBackground(ColorScheme.DARKER_GRAY_HOVER_COLOR);
         displayPanel.setLayout(new BorderLayout(0, 0));
@@ -156,6 +150,11 @@ public class SalvagingHelperPanel extends PluginPanel {
 
     public JPanel buildDebugPanel() {
         JPanel debugContainer = new JPanel(new BorderLayout());
+        JButton dumpButton = new JButton("Dump game objects");
+        dumpButton.addActionListener(e -> {
+            plugin.actionHandler.dumpGameObjects(client);
+        });
+        debugContainer.add(dumpButton);
         return debugContainer;
     }
 
@@ -167,7 +166,6 @@ public class SalvagingHelperPanel extends PluginPanel {
         createJPanelListener(toolbarPanel, "Loot Toolbar Panel", "");
         JPanel contentPanel = new JPanel();
         createJPanelListener(contentPanel, "Loot Content Panel", "");
-
 
         //region Toolbar and Buttons
         toolbarPanel.setLayout(new BoxLayout(toolbarPanel, BoxLayout.X_AXIS));
@@ -239,11 +237,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     //region Build: Salvage Panel
     public JPanel buildSalvageTypePanel(SalvageType salvageType) {
         JPanel containerPanel = new JPanel();
-        createJPanelListener(containerPanel, "Salvage Type Container Panel", salvageType.getName());
         JPanel categoryPanel = new JPanel();
-        createJPanelListener(categoryPanel, "Salvage Type Category Panel", salvageType.getName());
         JPanel lootItemsPanel = new JPanel();
-        createJPanelListener(lootItemsPanel, "Loot Items Panel", salvageType.getName());
         JPanel categorySubPanel = new JPanel();
         JLabel categoryIcon = new JLabel();
         JLabel categoryTitle = new JLabel();

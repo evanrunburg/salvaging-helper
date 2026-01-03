@@ -320,9 +320,6 @@ public class SalvagingHelperPlugin extends Plugin
 	private void onConfigChanged(final ConfigChanged event) {
 		// TODO - create...?
 		debug = config.debugModeEnabled();
-		if (event.getKey().equals("toggleToExecute")) {
-			actionHandler.canDump = true;
-		}
 		return;
 	}
 
@@ -759,7 +756,7 @@ public class SalvagingHelperPlugin extends Plugin
 					config.idleScreenFlashType(),
 					config.screenFlashColor(),
 					config.idleAlertWhileFocused());
-			notifier.notify(notif, "aaa");
+			notifier.notify(notif, "Move to a new shipwreck!");
 		}
 	}
     //endregion

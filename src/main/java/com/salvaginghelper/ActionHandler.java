@@ -41,7 +41,10 @@ public class ActionHandler {
     public boolean canDump = false;
     public boolean flagRebuild = false;
 
+    private Instruction currentInstruction = Instruction.JUST_CHILLING;
+
     private ItemContainer inv;
+    private Boat activeBoat;
     public Color clear = new Color(0, 0, 0, 0);
 
     // Inventory variables
@@ -99,18 +102,16 @@ public class ActionHandler {
         // Initialize maps
         this.plugin = plugin;
         this.config = config;
-        buildAnimationMap();
-        if (activeCrewmates != null) {
-            for (Crewmate crewmate : activeCrewmates) {
-                if (crewmate != null) {
-                    npcHighlightMap.put(crewmate.getCrewmateNpc(), Color.RED);
-                }
-            }
-        }
         this.objectOverlay = objOverlay;
+        this.activeBoat = boat;
+        buildAnimationMap();
+        buildCrewmateMap(activeCrewmates);
+
     }
 
     public Instruction determineState(SalvagingHelperPlugin plugin, Client client) {
+
+        Instruction newInstruction = Instruction.JUST_CHILLING;
 
         // Rebuild if needed
         if (flagRebuild) {
@@ -120,27 +121,46 @@ public class ActionHandler {
 
         processInventoryItems();
 
+        int closestActiveShipwreckDistance = 100000;
+        for (GameObject wreck : activeShipwrecks) {
+            int dist = wreck.getLocalLocation().distanceTo(client.getLocalPlayer().getLocalLocation());
+            if (dist < closestActiveShipwreckDistance){
+                closestActiveShipwreckDistance = dist;
+            }
+        }
+
+        // Needs to move to new spot?
+        // all hooks inactive, boat not moving, closest shipwreck
+        int activeHooks = 0;
+        int inactiveHooks = 0;
+        ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13565, 13567, 13572, 13579)); //13574, 13581 wrong?
+        if (activeBoat.getHookPort() != null) {
+            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookPort()))) {
+                inactiveHooks++;
+            } else { activeHooks++; }
+        }
+        if (activeBoat.getHookStarboard() != null) {
+            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookStarboard()))) {
+                inactiveHooks++;
+            } else { activeHooks++; }
+        }
+        // TODO: # crewmates assigned to salvage > 0
+        if (inactiveHooks>0 && activeBoat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
+                && closestActiveShipwreckDistance>1500) {
+            newInstruction = Instruction.SAIL_TO_SHIPWRECK;
+            plugin.sendIdleNotification();
+        }
+
+
+
+
+
 
         // TODO: should we highlight inventory? should we highlight game objects? should we fire events?
         objectOverlay.setGameObjHighlights(objectHighlightMap);
         objectOverlay.setNPCHighlights(npcHighlightMap);
 
-        if (canDump) {
-            for (GameObject obj : objectHighlightMap.keySet()) {
-                plugin.debugLog(Arrays.asList(obj.getId()+"", client.getObjectDefinition(obj.getId()).getName(), obj.getLocalLocation().toString(), obj.getWorldLocation().toString(), obj.getSceneMaxLocation().toString(), obj.getSceneMinLocation().toString(), getObjectAnimation(obj)+""), plugin);
-            }
-            for (GameObject wreck : activeShipwrecks) {
-                plugin.sendChatMessage("Active: "+wreck.getLocalLocation().toString()+", "+getObjectAnimation(wreck));
-            }
-            for (GameObject wreck : inactiveShipwrecks) {
-                plugin.sendChatMessage("Inactive: "+wreck.getLocalLocation().toString()+", "+getObjectAnimation(wreck));
-            }
-
-            //rebuild(plugin, client);
-            canDump = false;
-        }
-
-        return Instruction.JUST_CHILLING;
+        return newInstruction;
     }
 
     public void processPlayerAnimation(SalvagingHelperPlugin plugin, AnimationChanged event, Player player, int animationId) {
@@ -316,16 +336,9 @@ public class ActionHandler {
     }
 
     public boolean isOurs(GameObject object) {
-        //plugin.debugLog(List.of(object.getId()+"", Integer.toBinaryString(object.getConfig()), object.getWorldView().getId()+"",
-        //        plugin.client.getLocalPlayer().getWorldView().getId()+"", object.getRenderable().getModel().getFaceCount()+"", object.getWorldLocation().toString()), plugin);
-        //if (object.getWorldLocation().getRegionID() == 15460) {
-            //plugin.sendChatMessage("Object "+object.getId()+" is ours - had region ID "+object.getWorldLocation().getRegionID()+", wv "
-            //+object.getWorldView().getId()+", local "+object.getLocalLocation().toString());
         if (object.getWorldView()==plugin.getClient().getLocalPlayer().getWorldView()) {
             return true;
         } else {
-            //plugin.sendChatMessage("Object "+object.getId()+" not ours - region ID "+ Arrays.toString(object.getWorldView().getMapRegions()) +", wv "
-            //        +object.getWorldView().getId()+", local "+object.getLocalLocation().toString()+", "+object);
             return false;
         }
     }
@@ -409,21 +422,12 @@ public class ActionHandler {
     @SuppressWarnings("unchecked")
     public void rebuild(SalvagingHelperPlugin plugin, Client client) {
 
-        // Work on cached copies to avoid ConcurrentModificationException error
-        //HashMap<NPC, Color> npcHighlightMapCopy = (HashMap<NPC, Color>) npcHighlightMap.clone();
-        //HashMap<GameObject, Color> objectHighlightMapCopy = (HashMap<GameObject, Color>) objectHighlightMap.clone();
         List<GameObject> activeShipwrecksCopy = new ArrayList<>(activeShipwrecks);
         List<GameObject> inactiveShipwrecksCopy = new ArrayList<>(inactiveShipwrecks);
 
-        for (GameObject wreck : activeShipwrecksCopy) {
-            objectHighlightMap.remove(wreck);
-        }
-        for (GameObject wreck : inactiveShipwrecksCopy) {
-            objectHighlightMap.remove(wreck);
-        }
-        //objectOverlay.setGameObjHighlights(objectHighlightMapCopy);
+        for (GameObject wreck : activeShipwrecksCopy) { objectHighlightMap.remove(wreck); }
+        for (GameObject wreck : inactiveShipwrecksCopy) { objectHighlightMap.remove(wreck); }
         objectOverlay.setGameObjHighlights(objectHighlightMap);
-        //objectHighlightMap = objectHighlightMapCopy;
         activeShipwrecks.clear();
         inactiveShipwrecks.clear();
         collectShipwrecks(client, true);
@@ -437,5 +441,17 @@ public class ActionHandler {
 
     public void deleteNPC(NPC npc) {
         npcHighlightMap.remove(npc);
+    }
+
+    public void dumpGameObjects(Client client) {
+        for (GameObject obj : objectHighlightMap.keySet()) {
+            plugin.debugLog(Arrays.asList(obj.getId() + "", client.getObjectDefinition(obj.getId()).getName(), obj.getLocalLocation().toString(), obj.getWorldLocation().toString(), obj.getSceneMaxLocation().toString(), obj.getSceneMinLocation().toString(), getObjectAnimation(obj) + ""), plugin);
+        }
+        for (GameObject wreck : activeShipwrecks) {
+            plugin.sendChatMessage("Active: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck));
+        }
+        for (GameObject wreck : inactiveShipwrecks) {
+            plugin.sendChatMessage("Inactive: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck));
+        }
     }
 }

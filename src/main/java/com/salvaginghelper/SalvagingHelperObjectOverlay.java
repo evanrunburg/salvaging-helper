@@ -34,7 +34,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
     private ConcurrentHashMap<GameObject, Color> gameObjectsToHighlight = new ConcurrentHashMap<>();
     private ConcurrentHashMap<NPC, Color> npcsToHighlight = new ConcurrentHashMap<>();
     private final int hookRenderRadius = 2500;
-    private final int salvageRadius = 1150;
+    public final int salvageRadius = 1150;
 
     @Inject
     private SalvagingHelperObjectOverlay(Client client, SalvagingHelperPlugin plugin, SalvagingHelperConfig config, ModelOutlineRenderer outlineRenderer)
