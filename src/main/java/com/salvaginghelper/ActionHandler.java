@@ -145,7 +145,6 @@ public class ActionHandler {
                 inactiveHooks++;
             } else { activeHooks++; }
         }
-        plugin.sendChatMessage("Active, inactive hooks: "+activeHooks+", "+inactiveHooks);
         // TODO: # crewmates assigned to salvage > 0
         if (inactiveHooks>0 && activeBoat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
                 && closestActiveShipwreckDistance>1500) {
