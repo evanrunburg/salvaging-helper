@@ -1,0 +1,155 @@
+2,CARGO_HOLD,false,false,false,false,false,Steel cannonball
+43,DROP,false,false,false,true,false,Adamant arrowtips
+207,CONTAINER,true,false,false,true,false,Grimy ranarr weed
+211,CONTAINER,true,false,false,true,false,Grimy avantoe
+213,CONTAINER,true,false,false,true,false,Grimy kwuarm
+215,CONTAINER,true,false,false,true,false,Grimy cadantine
+217,CONTAINER,true,false,false,true,false,Grimy dwarf weed
+219,CONTAINER,true,false,false,true,false,Grimy torstol
+301,DROP,true,false,false,false,false,Lobster pot
+307,DROP,true,false,false,false,false,Fishing rod
+311,DROP,true,false,false,false,false,Harpoon
+313,DROP,true,false,false,false,false,Fishing bait
+314,KEEP,true,false,false,false,false,Feather
+331,DROP,true,false,false,true,false,Raw salmon
+353,DROP,true,false,false,true,false,Raw mackerel
+359,DROP,true,false,false,true,false,Raw tuna
+371,DROP,true,false,false,true,false,Raw swordfish
+377,DROP,true,false,false,true,false,Raw lobster
+383,CONTAINER,true,false,false,true,false,Raw shark
+401,DROP,false,false,false,false,false,Seaweed
+405,PROCESS,false,false,false,true,false,Casket
+411,DROP,false,false,false,true,false,Oyster pearl
+413,DROP,false,false,false,true,false,Oyster pearls
+436,DROP,false,false,false,true,false,Copper ore
+442,DROP,false,false,false,true,false,Silver ore
+447,DROP,false,false,false,true,false,Mithril ore
+526,DROP,false,true,false,false,false,Bones
+555,CONTAINER,true,false,false,false,false,Water rune
+556,CONTAINER,true,false,false,false,false,Air rune
+822,DROP,false,false,false,true,false,Mithril dart tip
+823,DROP,false,false,false,true,false,Adamant dart tip
+886,DROP,false,false,true,false,false,Steel arrow
+890,DROP,false,false,true,false,false,Adamant arrow
+892,EQUIP,false,false,true,false,false,Rune arrow
+950,DROP,false,false,false,false,false,Silk
+954,DROP,true,false,false,false,false,Rope
+958,DROP,false,false,false,false,false,Grey wolf fur
+960,DROP,true,false,false,false,false,Plank
+995,KEEP,false,false,false,false,false,Coins
+1135,ALCH,false,false,true,false,false,Green d'hide body
+1299,ALCH,false,false,true,false,false,Mithril longsword
+1301,ALCH,false,false,true,false,false,Adamant longsword
+1303,ALCH,false,false,true,false,false,Rune longsword
+1317,ALCH,false,false,true,false,false,Adamant 2h sword
+1329,ALCH,false,false,true,false,false,Mithril scimitar
+1333,ALCH,false,false,true,false,false,Rune scimitar
+1511,DROP,true,false,false,true,false,Logs
+1521,DROP,true,false,false,true,false,Oak logs
+1539,KEEP,false,false,false,false,false,Steel nails
+1625,DROP,false,false,false,true,false,Uncut opal
+1627,DROP,false,false,false,true,false,Uncut jade
+1629,DROP,false,false,false,true,false,Uncut red topaz
+1635,DROP,false,false,true,false,false,Gold ring
+1637,DROP,false,false,true,false,false,Sapphire ring
+1639,ALCH,false,false,true,false,false,Emerald ring
+1643,ALCH,false,false,true,false,false,Diamond ring
+1731,ALCH,false,false,true,false,false,Amulet of power
+1941,KEEP,false,false,false,false,false,Swamp paste
+1963,DROP,false,true,false,false,false,Banana
+1993,DROP,false,true,false,false,false,Jug of wine
+2007,DROP,false,false,false,false,false,Spice
+2349,DROP,false,false,false,false,false,Bronze bar
+2351,DROP,false,false,false,false,false,Iron bar
+2353,DROP,false,false,false,false,false,Steel bar
+2355,DROP,false,false,false,false,false,Silver bar
+2485,CONTAINER,true,false,false,true,false,Grimy lantadyme
+3051,CONTAINER,true,false,false,true,false,Grimy snapdragon
+3748,ALCH,false,false,false,false,false,Fremennik helm
+3749,ALCH,false,false,true,false,false,Archer helm
+3751,ALCH,false,false,true,false,false,Berserker helm
+3753,ALCH,false,false,true,false,false,Warrior helm
+3755,ALCH,false,false,true,false,false,Farseer helm
+4819,KEEP,false,false,false,false,false,Bronze nails
+4820,KEEP,false,false,false,false,false,Iron nails
+4822,KEEP,false,false,false,false,false,Mithril nails
+4823,KEEP,false,false,false,false,false,Adamantite nails
+4824,KEEP,false,false,false,false,false,Rune nails
+5106,DROP,true,false,false,false,false,Poison ivy seed
+5280,DROP,true,false,false,false,false,Cactus seed
+5281,DROP,true,false,false,false,false,Belladonna seed
+5296,DROP,true,false,false,false,false,Toadflax seed
+5297,DROP,true,false,false,false,false,Irit seed
+5298,CONTAINER,true,false,false,false,false,Avantoe seed
+5299,CONTAINER,true,false,false,false,false,Kwuarm seed
+5300,CONTAINER,true,false,false,false,false,Snapdragon seed
+5301,CONTAINER,true,false,false,false,false,Cadantine seed
+5302,CONTAINER,true,false,false,false,false,Lantadyme seed
+5303,CONTAINER,true,false,false,false,false,Dwarf weed seed
+5304,KEEP,true,false,false,false,false,Torstol seed
+5525,DROP,false,false,false,false,false,Tiara
+6332,CONTAINER,true,false,false,false,false,Mahogany logs
+6333,DROP,true,false,false,false,false,Teak logs
+7944,DROP,true,false,false,true,false,Raw monkfish
+8778,DROP,true,false,false,false,false,Oak plank
+8780,CONTAINER,true,false,false,false,false,Teak plank
+8782,CONTAINER,true,false,false,false,false,Mahogany plank
+9075,CONTAINER,true,false,false,false,false,Astral rune
+9380,PROCESS,false,false,false,true,false,Adamant bolts(unf)
+10810,DROP,true,false,false,false,false,Arctic pine logs
+11076,ALCH,false,false,true,false,false,Emerald bracelet
+11085,ALCH,false,false,true,false,false,Ruby bracelet
+11092,ALCH,false,false,true,false,false,Diamond bracelet
+11334,KEEP,true,false,false,false,true,Fish offcuts
+13204,KEEP,false,false,false,false,false,Platinum token
+13483,CONTAINER,true,false,false,false,false,Ensouled troll head
+21504,DROP,false,false,false,false,false,Giant seaweed
+22873,DROP,true,false,false,false,false,Potato cactus seed
+22879,DROP,true,false,false,false,false,Snape grass seed
+28896,DROP,false,true,false,false,false,Rum
+31406,KEEP,false,false,false,false,false,Dragon nails
+31511,CONTAINER,true,false,false,false,false,Elkhorn frag
+31513,CONTAINER,true,false,false,false,false,Pillar frag
+31515,CONTAINER,true,false,false,false,false,Umbral frag
+31541,CONTAINER,true,false,false,false,false,Flax seed
+31543,CONTAINER,true,false,false,false,false,Hemp seed
+31545,CONTAINER,true,false,false,false,false,Cotton seed
+31547,CONTAINER,true,false,false,false,false,Camphor seed
+31549,CONTAINER,true,false,false,false,false,Ironwood seed
+31551,CONTAINER,true,false,false,false,false,Rosewood seed
+31716,DROP,false,false,false,true,false,Lead ore
+31906,CARGO_HOLD,false,false,false,false,true,Bronze cannonball
+31908,CARGO_HOLD,false,false,false,false,true,Iron cannonball
+31910,CARGO_HOLD,false,false,false,false,true,Mithril cannonball
+31912,CARGO_HOLD,false,false,false,false,true,Adamant cannonball
+31914,CARGO_HOLD,false,false,false,false,true,Rune cannonball
+31916,CARGO_HOLD,false,false,false,false,true,Dragon cannonball
+31970,CARGO_HOLD,false,true,false,false,true,Teak repair kit
+31973,CARGO_HOLD,false,true,false,false,true,Mahogany repair kit
+31979,CARGO_HOLD,false,true,false,false,true,Ironwood repair kit
+31989,KEEP,false,false,false,false,false,Boat bottle (empty)
+32083,KEEP,false,false,false,false,false,Coupon (wood plank)
+32085,KEEP,false,false,false,false,false,Coupon (oak plank)
+32099,KEEP,false,false,false,false,false,Salvor's paint
+32115,KEEP,false,false,false,false,false,D. cannon barrel
+32349,CONTAINER,true,false,false,true,false,Raw marlin
+32398,KEEP,false,false,true,false,false,Sailors amulet
+32863,KEEP,false,false,false,false,false,Rusty locket
+32864,KEEP,false,false,false,false,false,Mouldy block
+32865,KEEP,false,false,false,false,false,Dull knife
+32866,KEEP,false,false,false,false,false,Broken compass
+32867,KEEP,false,false,false,false,false,Rusty coin
+32868,KEEP,false,false,false,false,false,Broken sextant
+32869,KEEP,false,false,false,false,false,Mouldy doll
+32870,KEEP,false,false,false,false,false,Smashed mirror
+1623,CONTAINER,true,false,false,true,false,Uncut sapphire
+1621,CONTAINER,true,false,false,true,false,Uncut emerald
+1619,CONTAINER,true,false,false,true,false,Uncut ruby
+1617,CONTAINER,true,false,false,true,false,Uncut diamond
+1462,DROP,false,false,false,false,false,Nature talisman
+830,DROP,false,false,true,false,false,Rune javelin
+987,KEEP,false,false,false,false,false,Loop half of key
+985,KEEP,false,false,false,false,false,Tooth half of key
+1247,ALCH,false,false,false,false,false,Rune spear
+2366,KEEP,false,false,false,false,false,Shield left half
+1249,KEEP,false,false,true,false,false,Dragon spear

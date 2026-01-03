@@ -1,0 +1,46 @@
+package com.salvaginghelper;
+
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.widgets.WidgetItem;
+import net.runelite.client.game.ItemManager;
+import net.runelite.client.ui.overlay.WidgetItemOverlay;
+
+import javax.inject.Inject;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.util.List;
+
+class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
+
+    //private final Client client;
+    private final SalvagingHelperPlugin plugin;
+    private final SalvagingHelperConfig config;
+    private final ItemManager itemManager;
+
+    @Inject
+    private SalvagingHelperItemUnderlay(ItemManager itemManager, SalvagingHelperPlugin plugin, SalvagingHelperConfig config) {
+        this.itemManager = itemManager;
+        this.plugin = plugin;
+        this.config = config;
+
+        showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE);
+    }
+
+    @Override
+    public void renderItemOverlay(Graphics2D graphics, int itemId, WidgetItem widgetItem)
+    {
+        if (!config.enableLootOverlays() || !plugin.onBoat) { return; }
+
+        // Canonicalize for base item ID to match against our lists, but remember to
+        // render against actual item ID later for correct underlay
+        int finalItemId = itemManager.canonicalize(itemId);
+        Color color = plugin.lootManager.toLootColor(finalItemId);
+        if (color==null) {
+            return;
+        } else {
+            Rectangle bounds = widgetItem.getCanvasBounds();
+            final BufferedImage outline = itemManager.getItemOutline(itemId, widgetItem.getQuantity(), color);
+            graphics.drawImage(outline, (int) bounds.getX(), (int) bounds.getY(), null);
+        }
+    }
+}
