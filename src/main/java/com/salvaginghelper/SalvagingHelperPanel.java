@@ -155,6 +155,11 @@ public class SalvagingHelperPanel extends PluginPanel {
             plugin.actionHandler.dumpGameObjects(client);
         });
         debugContainer.add(dumpButton);
+        JButton idleNotifyButton = new JButton("Check idle notify vars");
+        dumpButton.addActionListener(e -> {
+            plugin.actionHandler.dumpGameObjects(client);
+        });
+        debugContainer.add(dumpButton);
         return debugContainer;
     }
 

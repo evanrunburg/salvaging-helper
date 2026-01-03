@@ -33,12 +33,11 @@ public class ActionHandler {
     public static HashMap<Integer, Crewmate.Activity> mapAnimToActivity = new HashMap<>();
     public ConcurrentHashMap<NPC, Color> npcHighlightMap = new ConcurrentHashMap<>();
     public ConcurrentHashMap<GameObject, Color> objectHighlightMap = new ConcurrentHashMap<>();
-    public List<GameObject> activeShipwrecks = new ArrayList<GameObject>();
-    public List<GameObject> inactiveShipwrecks = new ArrayList<GameObject>();
+    public List<GameObject> activeShipwrecks = new ArrayList<>();
+    public List<GameObject> inactiveShipwrecks = new ArrayList<>();
     private final SalvagingHelperObjectOverlay objectOverlay;
     private final SalvagingHelperPlugin plugin;
     private final SalvagingHelperConfig config;
-    public boolean canDump = false;
     public boolean flagRebuild = false;
 
     private Instruction currentInstruction = Instruction.JUST_CHILLING;
@@ -82,7 +81,7 @@ public class ActionHandler {
     private boolean isHuntsmanKitFull = false;
     private boolean invHasContainerReagentPouch = false;
     private boolean isReagentPouchFull = false;
-    // Other shit
+
     private boolean containsSalvage = false;
     private boolean isFull = false;
     private boolean containsContainerableLoot = false;
@@ -111,7 +110,7 @@ public class ActionHandler {
 
     public Instruction determineState(SalvagingHelperPlugin plugin, Client client) {
 
-        Instruction newInstruction = Instruction.JUST_CHILLING;
+        Instruction newInstruction = currentInstruction;
 
         // Rebuild if needed
         if (flagRebuild) {
@@ -121,33 +120,19 @@ public class ActionHandler {
 
         processInventoryItems();
 
-        int closestActiveShipwreckDistance = 100000;
-        for (GameObject wreck : activeShipwrecks) {
-            int dist = wreck.getLocalLocation().distanceTo(client.getLocalPlayer().getLocalLocation());
-            if (dist < closestActiveShipwreckDistance){
-                closestActiveShipwreckDistance = dist;
-            }
-        }
+        // Set up to perform the logic all at once cleanly
+        int activeHooks = countHooks("Active");
+        int inactiveHooks = countHooks("Inactive");
+        int closestActiveShipwreckDistance = closestWreckDist(client);
+
 
         // Needs to move to new spot?
         // all hooks inactive, boat not moving, closest shipwreck
-        int activeHooks = 0;
-        int inactiveHooks = 0;
-        ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13575, 13582));
-                //13565, 13567, 13572, 13579)); //13574, 13581 wrong?
-        if (activeBoat.getHookPort() != null) {
-            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookPort()))) {
-                inactiveHooks++;
-            } else { activeHooks++; }
-        }
-        if (activeBoat.getHookStarboard() != null) {
-            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookStarboard()))) {
-                inactiveHooks++;
-            } else { activeHooks++; }
-        }
+
+
         // TODO: # crewmates assigned to salvage > 0
         if (inactiveHooks>0 && activeBoat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
-                && closestActiveShipwreckDistance>1500) {
+                    && closestActiveShipwreckDistance>1500) {
             newInstruction = Instruction.SAIL_TO_SHIPWRECK;
             plugin.sendIdleNotification();
         }
@@ -346,8 +331,7 @@ public class ActionHandler {
 
     public void collectShipwrecks(Client client, boolean rebuild) {
         // TODO: can we hard-code coordinates to speed up lookup?
-        List<Integer> activeShipwreckIds = new ArrayList<>(List.of(60478)); // TODO: add other shipwreck gameobj IDs
-        List<Integer> inactiveShipwreckIds = new ArrayList<>(List.of(60479));
+
         // GameObject transmogrification makes things wonky and means we can't rely on our regular event
         // listeners to tell us when shipwrecks are and aren't there/active
         Tile[][] salvagingTiles = client.getTopLevelWorldView().getScene().getExtendedTiles()[0];
@@ -357,7 +341,7 @@ public class ActionHandler {
                 if (singleTile==null) { continue; }
                 for (GameObject gameObject : singleTile.getGameObjects()) {
                     if (gameObject==null) { continue; }
-                    if (activeShipwreckIds.contains(gameObject.getId()) && !objectHighlightMap.containsKey(gameObject)) {
+                    if (plugin.activeShipwreckIds.contains(gameObject.getId()) && !objectHighlightMap.containsKey(gameObject)) {
                         processObject(gameObject, plugin.ObjectTable, plugin.currentBoat);
                         // Clear out the current inactive shipwreck, unless we're trying to process that too
                         LocalPoint loc = gameObject.getLocalLocation();
@@ -369,7 +353,7 @@ public class ActionHandler {
                                 }
                             }
                         }
-                    } else if (inactiveShipwreckIds.contains(gameObject.getId()) && rebuild) {
+                    } else if (plugin.inactiveShipwreckIds.contains(gameObject.getId()) && rebuild) {
                         processObject(gameObject, plugin.ObjectTable, plugin.currentBoat);
                     }
                 }
@@ -379,15 +363,14 @@ public class ActionHandler {
 
     private void processInventoryItems() {
 
-/*      Item container class:
-                contains(itemId) -> boolean
-                count() -> # filled slots
-                count(itemId) -> int
-                find(itemId) -> first index
-                size() -> # slots
-        Item class:
-                getId(), getQuantity()
-*/
+//        Item container class:
+//                contains(itemId) -> boolean
+//                count() -> # filled slots
+//                count(itemId) -> int
+//                find(itemId) -> first index
+//                size() -> # slots
+//        Item class:
+//                getId(), getQuantity()
 
         if (!inventoryWasUpdated) { return; }
 
@@ -454,5 +437,36 @@ public class ActionHandler {
         for (GameObject wreck : inactiveShipwrecks) {
             plugin.sendChatMessage("Inactive: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck));
         }
+    }
+
+    public int countHooks(String type) {
+        int activeHooks = 0;
+        int inactiveHooks = 0;
+        ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13575, 13582));
+        //13565, 13567, 13572, 13579)); //13574, 13581 wrong?
+        if (activeBoat.getHookPort() != null) {
+            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookPort()))) {
+                inactiveHooks++;
+            } else { activeHooks++; }
+        }
+        if (activeBoat.getHookStarboard() != null) {
+            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookStarboard()))) {
+                inactiveHooks++;
+            } else { activeHooks++; }
+        }
+        if (type.equals("Active")){ return activeHooks; }
+        else if (type.equals("Inactive")){ return inactiveHooks; }
+        else { return -1; }
+    }
+
+    public int closestWreckDist(Client client) {
+        int closestActiveShipwreckDistance = 100000;
+        for (GameObject wreck : activeShipwrecks) {
+            int dist = wreck.getLocalLocation().distanceTo(client.getLocalPlayer().getLocalLocation());
+            if (dist < closestActiveShipwreckDistance){
+                closestActiveShipwreckDistance = dist;
+            }
+        }
+        return closestActiveShipwreckDistance;
     }
 }

@@ -288,7 +288,7 @@ public interface SalvagingHelperConfig extends Config
 	)
 	default boolean idleAlertWhileFocused()
 	{
-		return false;
+		return true;
 	}
 
 

@@ -269,25 +269,29 @@ public class Crewmate {
     //
     //
     public String mapAssignedStation(int station) {
-        switch (station) {
-            case 0:
-                return "No Assignment";
-            case 4:
-                return "Helm";
-            case 5:
-                return "Repairs";
-            case 9:
-                return "Cannon (starboard)";
-            case 10:
-                return "Cannon (port)";
-            case 12:
-                return "Middle station (port)";
-            case 13:
-                return "Hook (starboard)";
-            case 14:
-                return "Hook (port)";
-            default:
-                return "Unknown ("+station+")";
+        if (plugin.currentBoat.getBoatType() == 2) {
+            switch (station) {
+                case 0:
+                    return "No Assignment";
+                case 4:
+                    return "Helm";
+                case 5:
+                    return "Repairs";
+                case 9:
+                    return "Cannon (starboard)";
+                case 10:
+                    return "Cannon (port)";
+                case 12:
+                    return "Middle station (port)";
+                case 13:
+                    return "Hook (starboard)";
+                case 14:
+                    return "Hook (port)";
+                default:
+                    return "Unknown ("+station+")";
+            }
+        } else {
+            return "Raft/skiff not yet implemented";
         }
     }
 

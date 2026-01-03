@@ -73,6 +73,14 @@ public class SalvagingHelperPlugin extends Plugin
 	public boolean debug = true;
 	public Instant startTime;
 
+	private final ArrayList<Integer> shipwreckRespawnAnimIds = new ArrayList<>(Arrays.asList(13603, 13607, 13611,
+			13615, 13619, 13623, 13627, 13631));
+	public final ArrayList<Integer> activeShipwreckIds = new ArrayList<>(List.of(60464, 60466, 60468, 60470, 60472,
+			60474, 60476, 60478));
+	public final ArrayList<Integer> inactiveShipwreckIds = new ArrayList<>(List.of(60465, 60467, 60469, 60471,
+			60473, 60475, 60477, 60479
+	));
+
 	// Status variables about one's current voyage
 	List<Crewmate> activeCrewmates = new ArrayList<>(5);
 	Map<Integer, Crewmate> toCrewmate = new HashMap<>();
@@ -549,35 +557,6 @@ public class SalvagingHelperPlugin extends Plugin
 			//sendChatMessage("Rebuilding shipwreck cache on worldview -1 refresh.");
 			//actionHandler.rebuild(this, client);
 		}
-		//objectOverlay.buildEnvObjects(this, client, client.getLocalPlayer());
-		//WorldView wv = worldLoad.getWorldView();
-/*		WorldView wv = client.getLocalPlayer().getWorldView();
-		debugLog(Arrays.asList("Player worldview: "+wv.getId()+", map regions "+wv.getMapRegions()[0]), this);
-		Scene scene = wv.getScene();
-		Tile[][][] tileSet = scene.getExtendedTiles();
-
-		List<TileObject> tileObjects = new ArrayList<>();
-		for (Tile[] tileSet2 : tileSet[1]) {
-			for (Tile tile : tileSet2) {
-				if (tile != null) {
-					//sendChatMessage("Tile: "+tile.getWorldLocation().toString());
-					for (GameObject obj : tile.getGameObjects()) {
-						//sendChatMessage("id "+obj.getId()+", x "+obj.getX()+", y "+obj.getY());
-						if (obj != null) {
-							//sendChatMessage("id "+obj.getId()+", x "+obj.getX()+", y "+obj.getY());
-							tileObjects.add(obj);
-						}
-					}
-				}
-			}
-		}*/
-
-/*		int[] impIds = client.getObjectDefinition(60478).getImpostorIds();
-		if (impIds != null) {
-			for (int id : impIds) {
-				sendChatMessage(id+"");
-			}
-		}*/
 	}
 
 	@Subscribe
@@ -673,20 +652,12 @@ public class SalvagingHelperPlugin extends Plugin
 	@Subscribe
 	private void onPostAnimation(PostAnimation event) {
 		//debugLog(Arrays.asList(event.getAnimation().getId()+"", event.toString()), this);
-		if (event.getAnimation().getId() == 13623) {
+		// TODO - is this necessary?
+		// TODO - expand to other shipwreck types?
+
+		if (shipwreckRespawnAnimIds.contains(event.getAnimation().getId())) {
 			actionHandler.collectShipwrecks(client, false);
 		}
-	}
-
-	@Subscribe
-	private void onPostObjectComposition(PostObjectComposition event) {
-/*		ObjectComposition oc = event.getObjectComposition();
-		if (oc.getId()==60478 || oc.getId()==60479) // TODO: add all shipwrecks
-		{
-			//debugLog(Arrays.asList(oc.getId()+"", oc.getImpostor().getId()+"", oc.getVarbitId()+"", oc.getVarPlayerId()+"", oc.getName()), this);
-			//sendChatMessage("onPostObjectComposition fired for "+oc.getId()+" ("+oc.getName()+")");
-			actionHandler.collectShipwrecks(client, false);
-		}*/
 	}
 
 	@Subscribe
@@ -699,16 +670,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onChatMessage(final ChatMessage event) {
-		// TODO
-	}
-
-	@Subscribe
-	private void onFocusChanged(final FocusChanged event) {
-		/*notificationManager.setClientFocused(event.isFocused());
-		notificationManager.setLastFocusChange(Instant.now());
-		if (event.isFocused()) {
-			notificationManager.clearNotifications();
-		}*/
+		// TODO - parse status of item containers
 	}
 
 	@Subscribe
