@@ -93,7 +93,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             }
         }
 
-        plugin.sendChatMessage("Object cache built with size "+tempGameObjectSet.size());
+        plugin.sendChatMessage("Object cache built with size "+tempGameObjectSet.size(), false);
         //plugin.actionHandler.processObject(null, tempGameObjectSet, plugin.ObjectTable);
         //lastRebuildTimestamp = Instant.now();
 
@@ -140,7 +140,8 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             } catch (NullPointerException e) {
 
                 if (config.debugModeEnabled() && config.showObjectLoads()) {
-                    plugin.sendChatMessage("Error rendering overlay on "+client.getObjectDefinition(obj.getId()).getName()+" ("+obj.getId()+") at ("+obj.getLocalLocation().getX()+", "+obj.getLocalLocation().getY()+"). Deleting.");
+                    plugin.sendChatMessage("Error rendering overlay on "+client.getObjectDefinition(obj.getId()).getName()
+                            +" ("+obj.getId()+") at ("+obj.getLocalLocation().getX()+", "+obj.getLocalLocation().getY()+"). Deleting.", false);
                 }
                 plugin.actionHandler.deleteObject(obj);
                 setGameObjHighlights(plugin.actionHandler.objectHighlightMap);
@@ -154,7 +155,8 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             try {
                 outlineRenderer.drawOutline(npc, 5, npcsToHighlight.getOrDefault(npc, Color.BLACK), 5);
             } catch (NullPointerException e) {
-                plugin.sendChatMessage("Error rendering overlay on "+npc.getName()+" ["+npc.getId()+"] at "+npc.getLocalLocation().toString());
+                plugin.sendChatMessage("Error rendering overlay on "+npc.getName()+" ["+npc.getId()+"] at "
+                        +npc.getLocalLocation().toString(), false);
                 //plugin.actionHandler.deleteNPC(npc);
             }
         }

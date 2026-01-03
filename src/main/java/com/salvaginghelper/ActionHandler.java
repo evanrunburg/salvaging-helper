@@ -137,12 +137,6 @@ public class ActionHandler {
             plugin.sendIdleNotification();
         }
 
-
-
-
-
-
-        // TODO: should we highlight inventory? should we highlight game objects? should we fire events?
         objectOverlay.setGameObjHighlights(objectHighlightMap);
         objectOverlay.setNPCHighlights(npcHighlightMap);
 
@@ -153,7 +147,7 @@ public class ActionHandler {
         if (animationId==plugin.playerCurrentAnimation){ return; }
         Crewmate.Activity mappedActivity = mapAnimToActivity.get(animationId);
         if (mappedActivity == null) {
-            plugin.sendChatMessage("Unhandled player animation: "+animationId);
+            plugin.sendChatMessage("Unhandled player animation: "+animationId, false);
         } else {
             plugin.playerLastAnimation = plugin.playerCurrentAnimation;
             if (mappedActivity==plugin.playerCurrentActivity){ return; } else {
@@ -167,7 +161,7 @@ public class ActionHandler {
     public void processCrewmateAnimation(SalvagingHelperPlugin plugin, AnimationChanged event, Crewmate crewmate, int animationId) {
         Crewmate.Activity mappedActivity = mapAnimToActivity.get(animationId);
         if (mappedActivity == null) {
-            plugin.sendChatMessage("Unhandled animation "+animationId+" for "+crewmate.getName());
+            plugin.sendChatMessage("Unhandled animation "+animationId+" for "+crewmate.getName(), false);
             return;
         } else if (animationId==crewmate.getCurrentAnimation() || mappedActivity==crewmate.getCurrentStatus()) {
             return;
@@ -330,8 +324,6 @@ public class ActionHandler {
     }
 
     public void collectShipwrecks(Client client, boolean rebuild) {
-        // TODO: can we hard-code coordinates to speed up lookup?
-
         // GameObject transmogrification makes things wonky and means we can't rely on our regular event
         // listeners to tell us when shipwrecks are and aren't there/active
         Tile[][] salvagingTiles = client.getTopLevelWorldView().getScene().getExtendedTiles()[0];
@@ -343,7 +335,8 @@ public class ActionHandler {
                     if (gameObject==null) { continue; }
                     if (plugin.activeShipwreckIds.contains(gameObject.getId()) && !objectHighlightMap.containsKey(gameObject)) {
                         processObject(gameObject, plugin.ObjectTable, plugin.currentBoat);
-                        // Clear out the current inactive shipwreck, unless we're trying to process that too
+
+                        // Clear out the current inactive shipwreck unless we're rebuilding both lists from scratch
                         LocalPoint loc = gameObject.getLocalLocation();
                         if (!rebuild) {
                             for (GameObject depletedWreck : inactiveShipwrecks) {
@@ -432,10 +425,10 @@ public class ActionHandler {
             plugin.debugLog(Arrays.asList(obj.getId() + "", client.getObjectDefinition(obj.getId()).getName(), obj.getLocalLocation().toString(), obj.getWorldLocation().toString(), obj.getSceneMaxLocation().toString(), obj.getSceneMinLocation().toString(), getObjectAnimation(obj) + ""), plugin);
         }
         for (GameObject wreck : activeShipwrecks) {
-            plugin.sendChatMessage("Active: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck));
+            plugin.sendChatMessage("Active: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck), false);
         }
         for (GameObject wreck : inactiveShipwrecks) {
-            plugin.sendChatMessage("Inactive: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck));
+            plugin.sendChatMessage("Inactive: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck), false);
         }
     }
 

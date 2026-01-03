@@ -130,7 +130,7 @@ public class LootManager {
                 setLootColor(lootItem.getItemId(), lootItem.getLootCategory(), config);
             }
         } catch (IOException e) {
-            plugin.sendChatMessage("Couldn't find file to import loot item data: "+e.toString());
+            plugin.sendChatMessage("SalvagingHelper couldn't find file to import loot item data: "+e.toString(), true);
         }
     }
 

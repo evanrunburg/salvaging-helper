@@ -73,13 +73,12 @@ public class SalvagingHelperPlugin extends Plugin
 	public boolean debug = true;
 	public Instant startTime;
 
-	private final ArrayList<Integer> shipwreckRespawnAnimIds = new ArrayList<>(Arrays.asList(13603, 13607, 13611,
+	public final static ArrayList<Integer> shipwreckRespawnAnimIds = new ArrayList<>(Arrays.asList(13603, 13607, 13611,
 			13615, 13619, 13623, 13627, 13631));
-	public final ArrayList<Integer> activeShipwreckIds = new ArrayList<>(List.of(60464, 60466, 60468, 60470, 60472,
-			60474, 60476, 60478));
-	public final ArrayList<Integer> inactiveShipwreckIds = new ArrayList<>(List.of(60465, 60467, 60469, 60471,
-			60473, 60475, 60477, 60479
-	));
+	public final static ArrayList<Integer> activeShipwreckIds = new ArrayList<>(List.of(60464, 60466, 60468, 60470,
+			60472, 60474, 60476, 60478));
+	public final static ArrayList<Integer> inactiveShipwreckIds = new ArrayList<>(List.of(60465, 60467, 60469, 60471,
+			60473, 60475, 60477, 60479));
 
 	// Status variables about one's current voyage
 	List<Crewmate> activeCrewmates = new ArrayList<>(5);
@@ -87,16 +86,14 @@ public class SalvagingHelperPlugin extends Plugin
 	public boolean onBoat = false;
 	private int[] boatHotspots = new int[11];
 	private boolean ownsCurrentBoat = false;
-	public Activity playerLastActivity;
-	public Activity playerCurrentActivity;
-	public int playerLastAnimation;
-	public int playerCurrentAnimation;
+	public Activity playerLastActivity = Activity.IDLE;
+	public Activity playerCurrentActivity = Activity.IDLE;
+	public int playerLastAnimation = -1;
+	public int playerCurrentAnimation = -1;
 	public ActionHandler actionHandler;
 	public ActionHandler.Instruction directions;
 	private NavigationButton navigationButton;
-	private Activity playerStatus;
 	private int playerAtFacility=-1;
-	private int playerAssignedFacility=-1;
 	public int crewmateCount=0;
 	public Boat currentBoat = new Boat(this);
 
@@ -147,9 +144,6 @@ public class SalvagingHelperPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
-	//@Inject
-	//private SalvagingHelperPanel salvagingHelperPanel;
-
 	private SalvagingHelperPanel sidePanel;
 
 	@Inject
@@ -161,20 +155,8 @@ public class SalvagingHelperPlugin extends Plugin
 	protected void startUp() throws Exception {
 		debug = config.debugModeEnabled();
 
-
-
-		// Logging and mappings
-		log.debug("Salvaging Helper loaded");
-		VarbNameTable = new VarbitLookupTable("src/main/resources/varbits.properties");
-		VarpNameTable = new VarbitLookupTable("src/main/resources/varplayers.properties");
-		VBLT = new VarbitLookupTable("src/main/resources/varbitlist.properties");
-		VPLT = new VarbitLookupTable("src/main/resources/varplist.properties");
+		// Mappings
 		ObjectTable = new VarbitLookupTable("src/main/resources/sailingobjects.properties");
-        String LOG_FILE_NAME_VARBIT = "vb" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".txt";
-		LOG_FILE_PATH_VARBIT = Paths.get("logs/varbits/"+ LOG_FILE_NAME_VARBIT);
-		log.debug("Varbit log file name set: " + LOG_FILE_NAME_VARBIT);
-		Files.createFile(LOG_FILE_PATH_VARBIT);
-		startTime = Instant.now();
 
 		activeCrewmates.add(0, null);
 		activeCrewmates.add(1, null);
@@ -183,23 +165,17 @@ public class SalvagingHelperPlugin extends Plugin
 		activeCrewmates.add(4, null);
 		currentBoat.setActionHandler(actionHandler);
 
-		//objectOverlay = new SalvagingHelperObjectOverlay(client, this, config, )
-
-
-		playerCurrentAnimation = playerLastAnimation = -1;
-		playerCurrentActivity = playerLastActivity = Activity.IDLE;
-
-		// Draw graphics
+		// Graphics
 		overlayManager.add(itemOverlay);
 		overlayManager.add(debugOverlay);
 		overlayManager.add(objectOverlay);
 
+		// Concept managers
 		lootManager = new LootManager(this, config, configManager);
 		actionHandler = new ActionHandler(this, config, client, activeCrewmates, objectOverlay, currentBoat);
 
-		//final SalvagingHelperPanel sidePanel = new SalvagingHelperPanel(this, config, client, actionHandler, itemManager);
+		// UI
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "salvaging_helper_icon.png");
-
 		sidePanel = new SalvagingHelperPanel(this, config, client, itemManager, configManager, lootManager, clientThread);
 		navigationButton = NavigationButton.builder()
 				.tooltip("Salvaging Helper")
@@ -212,7 +188,6 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Override
 	protected void shutDown() throws Exception {
-		log.debug("Plugin stopped");
 		overlayManager.remove(itemOverlay);
 		overlayManager.remove(debugOverlay);
 		overlayManager.remove(objectOverlay);
@@ -238,26 +213,19 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 	}
 
-	private void debugWatch(String varType, int varId, String varName, int val, List<Integer> blacklist) {
-		if (!debug) { return; }
-		if (blacklist.contains(val)) {
-			return;
-		} else {
-			sendChatMessage("Watched "+varType+" "+varName+" ["+varId+"] set: "+val);
+	public void sendChatMessage(String chatMessage, boolean alwaysSend) {
+		if (alwaysSend || debug) {
+			final String message = new ChatMessageBuilder()
+					.append(ChatColorType.HIGHLIGHT)
+					.append(chatMessage)
+					.build();
+
+			chatMessageManager.queue(
+					QueuedMessage.builder()
+							.type(ChatMessageType.CONSOLE)
+							.runeLiteFormattedMessage(message)
+							.build());
 		}
-	}
-
-	public void sendChatMessage(String chatMessage) {
-		final String message = new ChatMessageBuilder()
-				.append(ChatColorType.HIGHLIGHT)
-				.append(chatMessage)
-				.build();
-
-		chatMessageManager.queue(
-				QueuedMessage.builder()
-						.type(ChatMessageType.CONSOLE)
-						.runeLiteFormattedMessage(message)
-						.build());
 	}
     //endregion
 
@@ -277,7 +245,6 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 		actionHandler.buildCrewmateMap(activeCrewmates);
 		crewmateCount = Math.toIntExact(activeCrewmates.stream().filter(Objects::nonNull).count()); // TODO - copy this around?
-
 
 		// Check animation state of particular objects that transmog instead of triggering event handlers
 		GameObject extractor = currentBoat.getCrystalExtractor();
@@ -299,7 +266,7 @@ public class SalvagingHelperPlugin extends Plugin
 					currentBoat.setExtractorAnimation(13175);
 					break;
 				default:
-					sendChatMessage("Crystal extractor's animation is being weird...");
+					sendChatMessage("Error with crystal extractor animation: "+actionHandler.getObjectAnimation(extractor), false);
 			}
 
 		}
@@ -334,228 +301,172 @@ public class SalvagingHelperPlugin extends Plugin
 	@Subscribe
 	private void onVarbitChanged(final VarbitChanged event) {
 		int vbId = event.getVarbitId();
-		int vpId = event.getVarpId();
 		int val = event.getValue();
+		switch (vbId) {
 
-		if (vbId < 0) {
-			switch (Integer.parseInt(VPLT.toGameVal(vpId))) {
-				case VARBIT_WHITELIST:
-					//debugLog("|", List.of(""+vbId, VarbNameTable.toGameVal(vbId), ""+vpId, VarpNameTable.toGameVal(vpId), ""+event.getValue()), this);
-					switch (vpId) {
-						case VarPlayerID.SAILING_SIDEPANEL_BOAT_TYPE:
-							sendChatMessage("Varp SAILING_SIDEPANEL_BOAT_TYPE [5117] set to "+val+" - figure it out please");
-							return;
-						case VarPlayerID.SAILING_CREW_HELD_CARGO_0:
-						case VarPlayerID.SAILING_CREW_HELD_CARGO_1:
-						case VarPlayerID.SAILING_CREW_HELD_CARGO_2:
-						case VarPlayerID.SAILING_CREW_HELD_CARGO_3:
-						case VarPlayerID.SAILING_CREW_HELD_CARGO_4:
-						case VarPlayerID.SAILING_CREW_HELD_CARGO_BOAT_INV:
-						case VarPlayerID.SAILING_BOAT_CARGOHOLD_INV:
-							// These look important but I haven't seen them ever get set, so let's just watch them for now
-							debugWatch("varp", vpId, VarpNameTable.toGameVal(vpId), val, List.of(-1));
-							return;
-						default:
-							return;
-					}
-                case VARBIT_BLACKLIST:
-					//log.debug(event.toString()+" hit VARBIT_BLACKLIST");
-					return;
-				case VARBIT_SAILING_LIST:
-					//log.debug(event.toString()+" hit VARBIT_SAILINGLIST");
-					return;
-				default:
-					sendChatMessage("Unexpected varp "+VarpNameTable.toGameVal(vpId)+" ["+vpId+"] set to "+val);
-					return;
-					//debugLog("|", List.of(""+vbId, VarbNameTable.toGameVal(vbId), ""+vpId, VarpNameTable.toGameVal(vpId), ""+event.getValue(), "|New"), this);
-			}
-		} else {
-			switch (Integer.parseInt(VBLT.toGameVal(vbId))) {
-				case VARBIT_WHITELIST:
-					switch (vbId) {
-                        //region Boat and Crew
-                        case VarbitID.SAILING_BOARDED_BOAT:
-							onBoat = (val > 0);
-							return;
-						case VarbitID.SAILING_SIDEPANEL_BOAT_MOVE_MODE:
-							currentBoat.setBoatMoveMode(val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_1:
-							replaceCrewMember(1, val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_2:
-							replaceCrewMember(2, val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_3:
-							replaceCrewMember(3, val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_4:
-							replaceCrewMember(4, val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_5:
-							replaceCrewMember(5, val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_1_POSITION:
-							activeCrewmates.get(0).setAssignedStationNumber(val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_2_POSITION:
-							activeCrewmates.get(1).setAssignedStationNumber(val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_3_POSITION:
-							activeCrewmates.get(2).setAssignedStationNumber(val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_4_POSITION:
-							activeCrewmates.get(3).setAssignedStationNumber(val);
-							return;
-						case VarbitID.SAILING_CREW_SLOT_5_POSITION:
-							activeCrewmates.get(4).setAssignedStationNumber(val);
-							return;
-						case VarbitID.SAILING_PLAYER_IS_ON_PLAYER_BOAT:
-							currentBoat.setOwned( (val > 0) );
-							return;
-						case VarbitID.SAILING_BOARDED_BOAT_TYPE:
-							currentBoat.setBoatType(val);
-							return;
-                        //endregion
-                        //region Facilities, Stations, Assignments
-                        case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT0:
-							boatHotspots[0] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT1:
-							boatHotspots[1] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT2:
-							boatHotspots[2] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT3:
-							boatHotspots[3] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT4:
-							boatHotspots[4] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT5:
-							boatHotspots[5] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT6:
-							boatHotspots[6] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT7:
-							boatHotspots[7] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT8:
-							boatHotspots[8] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT9:
-							boatHotspots[9] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT10:
-							boatHotspots[10] = val;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_0:
-							playerAtFacility = (val==1) ? 0 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_1:
-							playerAtFacility = (val==1) ? 1 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_2:
-							playerAtFacility = (val==1) ? 2 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_3:
-							playerAtFacility = (val==1) ? 3 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_4:
-							playerAtFacility = (val==1) ? 4 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_5:
-							playerAtFacility = (val==1) ? 5 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_6:
-							playerAtFacility = (val==1) ? 6 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_7:
-							playerAtFacility = (val==1) ? 7 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_8:
-							playerAtFacility = (val==1) ? 8 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_9:
-							playerAtFacility = (val==1) ? 9 : -1;
-							return;
-						case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_10:
-							playerAtFacility = (val==1) ? 10 : -1;
-							return;
-                        //endregion
-                        //region Containers (despairge...)
-                        case VarbitID.RUNE_POUCH_TYPE_1: // varb 4070 = current spellbook if that ever becomes relevant
-							runePouch[0][0] = val; // TODO also apparently 16201 =
-							return;
-						case VarbitID.RUNE_POUCH_TYPE_2:
-							runePouch[1][0] = val;
-							return;
-						case VarbitID.RUNE_POUCH_TYPE_3:
-							runePouch[2][0] = val;
-							return;
-						case VarbitID.RUNE_POUCH_TYPE_4:
-							runePouch[3][0] = val;
-							return;
-						case VarbitID.RUNE_POUCH_QUANTITY_1:
-							runePouch[0][1] = val;
-							return;
-						case VarbitID.RUNE_POUCH_QUANTITY_2:
-							runePouch[1][1] = val;
-							return;
-						case VarbitID.RUNE_POUCH_QUANTITY_3:
-							runePouch[2][1] = val;
-							return;
-						case VarbitID.RUNE_POUCH_QUANTITY_4:
-							runePouch[3][1] = val;
-							return;
-						case VarbitID.RUNE_POUCH_SELECTEDQUANTITY: // TODO: do we need to work this in?
-							return;
-						case VarbitID.PLANK_SACK_PLAIN:
-							plankSack[0] = val;
-							return;
-						case VarbitID.PLANK_SACK_OAK:
-							plankSack[1] = val;
-							return;
-						case VarbitID.PLANK_SACK_TEAK:
-							plankSack[2] = val;
-							return;
-						case VarbitID.PLANK_SACK_MAHOGANY:
-							plankSack[3] = val;
-							return;
-						case VarbitID.PLANK_SACK_CAMPHOR:
-							plankSack[4] = val;
-							return;
-						case VarbitID.PLANK_SACK_IRONWOOD:
-							plankSack[5] = val;
-							return;
-						case VarbitID.PLANK_SACK_ROSEWOOD:
-							plankSack[6] = val;
-							return;
-                        //endregion
-						default:
-							//debugLog(List.of(""+vbId, VarbNameTable.toGameVal(vbId), ""+vpId, VarpNameTable.toGameVal(vpId), ""+event.getValue(), "|New"), this);
-					}
-				case VARBIT_BLACKLIST:
-					return;
-				case VARBIT_SAILING_LIST:
-					return;
-				default:
-					sendChatMessage("Unexpected varb "+VarbNameTable.toGameVal(vbId)+" ["+vbId+"] set to "+val);
-					//debugLog("|", List.of(""+vbId, VarbNameTable.toGameVal(vbId), ""+vpId, VarpNameTable.toGameVal(vpId), ""+event.getValue(), "|New"), this);
-			}
-		}
-	}
+			//region Boat and Crew
+			case VarbitID.SAILING_BOARDED_BOAT:
+				onBoat = (val > 0);
+				return;
+			case VarbitID.SAILING_SIDEPANEL_BOAT_MOVE_MODE:
+				currentBoat.setBoatMoveMode(val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_1:
+				replaceCrewMember(1, val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_2:
+				replaceCrewMember(2, val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_3:
+				replaceCrewMember(3, val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_4:
+				replaceCrewMember(4, val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_5:
+				replaceCrewMember(5, val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_1_POSITION:
+				activeCrewmates.get(0).setAssignedStationNumber(val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_2_POSITION:
+				activeCrewmates.get(1).setAssignedStationNumber(val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_3_POSITION:
+				activeCrewmates.get(2).setAssignedStationNumber(val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_4_POSITION:
+				activeCrewmates.get(3).setAssignedStationNumber(val);
+				return;
+			case VarbitID.SAILING_CREW_SLOT_5_POSITION:
+				activeCrewmates.get(4).setAssignedStationNumber(val);
+				return;
+			case VarbitID.SAILING_PLAYER_IS_ON_PLAYER_BOAT:
+				currentBoat.setOwned(val > 0);
+				return;
+			case VarbitID.SAILING_BOARDED_BOAT_TYPE:
+				currentBoat.setBoatType(val);
+				return;
+			//endregion
 
-	// TODO: fix/delete?
-	@Subscribe
-	private void onWorldViewLoaded(WorldViewLoaded worldLoad) {
-
-		if (worldLoad.getWorldView().getId()==-1) {
-			// Need to recalculate local points
-			//sendChatMessage("Rebuilding shipwreck cache on worldview -1 refresh.");
-			//actionHandler.rebuild(this, client);
+			//region Facilities, Stations, Assignments
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT0:
+				boatHotspots[0] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT1:
+				boatHotspots[1] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT2:
+				boatHotspots[2] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT3:
+				boatHotspots[3] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT4:
+				boatHotspots[4] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT5:
+				boatHotspots[5] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT6:
+				boatHotspots[6] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT7:
+				boatHotspots[7] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT8:
+				boatHotspots[8] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT9:
+				boatHotspots[9] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT10:
+				boatHotspots[10] = val;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_0:
+				playerAtFacility = (val==1) ? 0 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_1:
+				playerAtFacility = (val==1) ? 1 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_2:
+				playerAtFacility = (val==1) ? 2 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_3:
+				playerAtFacility = (val==1) ? 3 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_4:
+				playerAtFacility = (val==1) ? 4 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_5:
+				playerAtFacility = (val==1) ? 5 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_6:
+				playerAtFacility = (val==1) ? 6 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_7:
+				playerAtFacility = (val==1) ? 7 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_8:
+				playerAtFacility = (val==1) ? 8 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_9:
+				playerAtFacility = (val==1) ? 9 : -1;
+				return;
+			case VarbitID.SAILING_SIDEPANEL_PLAYER_AT_FACILITY_10:
+				playerAtFacility = (val==1) ? 10 : -1;
+				return;
+			//endregion
+			//region Containers (despairge...)
+			case VarbitID.RUNE_POUCH_TYPE_1: // varb 4070 = current spellbook if that ever becomes relevant
+				runePouch[0][0] = val; // TODO also apparently 16201 =
+				return;
+			case VarbitID.RUNE_POUCH_TYPE_2:
+				runePouch[1][0] = val;
+				return;
+			case VarbitID.RUNE_POUCH_TYPE_3:
+				runePouch[2][0] = val;
+				return;
+			case VarbitID.RUNE_POUCH_TYPE_4:
+				runePouch[3][0] = val;
+				return;
+			case VarbitID.RUNE_POUCH_QUANTITY_1:
+				runePouch[0][1] = val;
+				return;
+			case VarbitID.RUNE_POUCH_QUANTITY_2:
+				runePouch[1][1] = val;
+				return;
+			case VarbitID.RUNE_POUCH_QUANTITY_3:
+				runePouch[2][1] = val;
+				return;
+			case VarbitID.RUNE_POUCH_QUANTITY_4:
+				runePouch[3][1] = val;
+				return;
+			case VarbitID.RUNE_POUCH_SELECTEDQUANTITY: // TODO: do we need to work this in?
+				return;
+			case VarbitID.PLANK_SACK_PLAIN:
+				plankSack[0] = val;
+				return;
+			case VarbitID.PLANK_SACK_OAK:
+				plankSack[1] = val;
+				return;
+			case VarbitID.PLANK_SACK_TEAK:
+				plankSack[2] = val;
+				return;
+			case VarbitID.PLANK_SACK_MAHOGANY:
+				plankSack[3] = val;
+				return;
+			case VarbitID.PLANK_SACK_CAMPHOR:
+				plankSack[4] = val;
+				return;
+			case VarbitID.PLANK_SACK_IRONWOOD:
+				plankSack[5] = val;
+				return;
+			case VarbitID.PLANK_SACK_ROSEWOOD:
+				plankSack[6] = val;
+				return;
+			//endregion
+			default:
 		}
 	}
 
@@ -581,9 +492,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onNpcSpawned(NpcSpawned event) {
-
 		NPC npc = event.getNpc();
-
 		// The only thing distinguishing our crewmates from other players' crewmates is that they share a WorldView
 		// with the one our player (but not client) occupies
 		if (Crewmate.isNPCSailingCrewmate(npc) && npc.getLocalLocation().getWorldView()==client.getLocalPlayer().getWorldView().getId()) {
@@ -629,32 +538,12 @@ public class SalvagingHelperPlugin extends Plugin
 	}
 
 	@Subscribe
-	private void onWidgetLoaded(WidgetLoaded event) {
-		//sendChatMessage("Opened widget:"+event.toString());
-
-
-		// N 944.0 SailingBoatCargoholdSide.UNIVERSE
-		// S 944.1 SailingBoatCargoholdSide.ITEMS; 944.1[7] = item at slot 7
-		// groupId 943, 944 both seem to be set when opening/closing cargo hold? 944 has items though...?
-
-	}
-
-	@Subscribe
-	private void onWidgetClosed(WidgetClosed event) {
-		//sendChatMessage("Closed widget:"+event.toString());
-	}
-
-	@Subscribe
 	private void onMenuOpened(MenuOpened event) {
 		//debugLog(Arrays.asList(event.toString(), event.getFirstEntry().toString(), String.valueOf(event.getFirstEntry().isDeprioritized())), this);
 	}
 
 	@Subscribe
 	private void onPostAnimation(PostAnimation event) {
-		//debugLog(Arrays.asList(event.getAnimation().getId()+"", event.toString()), this);
-		// TODO - is this necessary?
-		// TODO - expand to other shipwreck types?
-
 		if (shipwreckRespawnAnimIds.contains(event.getAnimation().getId())) {
 			actionHandler.collectShipwrecks(client, false);
 		}
@@ -668,23 +557,22 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 	}
 
+	// TODO - parse status of item containers
 	@Subscribe
 	private void onChatMessage(final ChatMessage event) {
-		// TODO - parse status of item containers
+
 	}
 
 	@Subscribe
 	private void onGameStateChanged(final GameStateChanged event) {
 		if (event.getGameState()==GameState.LOGIN_SCREEN || event.getGameState()==GameState.HOPPING) {
-			// clear all our cached data
 			actionHandler.inactiveShipwrecks.clear();
 			actionHandler.activeShipwrecks.clear();
 			actionHandler.objectHighlightMap.clear();
 			actionHandler.npcHighlightMap.clear();
-			sendChatMessage("Clearing all cached objects and NPCs.");
+			sendChatMessage("Clearing all cached objects and NPCs.", false);
 		}
 	}
-
     //endregion
 
 

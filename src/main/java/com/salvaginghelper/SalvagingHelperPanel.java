@@ -195,7 +195,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         importButton.setIcon(ICON_IMPORT);
         importButton.setToolTipText("Import loot settings from clipboard [TODO]");
         importButton.addActionListener(e -> {
-            plugin.sendChatMessage("Dimensions: "+lootContainer.getSize().toString());
+            // TODO
         });
 
         JButton exportButton = new JButton();
@@ -210,8 +210,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         resetButton.setIcon(ICON_RESET);
         resetButton.setToolTipText("Reset loot settings to plugin default [TODO]");
         resetButton.addActionListener(e -> {
-            Dimension d = calculateMinimumSize(lootContainer);
-            lootContainer.setMinimumSize(d);
+            // TODO
         });
 
         toolbarPanel.add(expandAllButton);
@@ -414,7 +413,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         LootItem lootItem = lootManager.lootItemMap.get(itemId);
         if (itemId>0 && lootCategory!=null && lootCategory!=lootItem.getLootCategory()) {
             lootItem.updateLootCategory(lootCategory);
-            plugin.sendChatMessage("Item category for item "+itemId+" updated to "+lootCategory.toString());
+            plugin.sendChatMessage("Item category for item "+itemId+" updated to "+lootCategory.toString(), false);
             Collection<JComboBox<LootOption>> itemBoxes = itemToComboBox.get(itemId);
             for (JComboBox<LootOption> box : itemBoxes) {
                 if (box.getSelectedItem() != lootCategory) {
@@ -470,26 +469,6 @@ public class SalvagingHelperPanel extends PluginPanel {
         } else {
             dropdown.setIcon(ICON_DROPDOWN_UNCLICKED);
         }
-    }
-
-    public Dimension calculateMinimumSize(JPanel container) {
-        int combinedHeight = 0;
-        Dimension beginSize = container.getSize();
-        plugin.sendChatMessage("Current size: "+beginSize.toString());
-        int subComponents = container.getComponentCount();
-        for (int j=0; j<subComponents; j++) {
-            Component comp = container.getComponent(j);
-            plugin.sendChatMessage(j+": "+comp.getSize().toString());
-        }
-        int subSubComponents = ((JPanel) container.getComponent(1)).getComponentCount();
-        for (int j=0; j<subSubComponents; j++) {
-            Component comp = ((JPanel) container.getComponent(1)).getComponent(j);
-            plugin.sendChatMessage(j+": "+comp.getSize().toString());
-            combinedHeight += comp.getHeight();
-        }
-                //JPanel comp : container.countComponents()
-        plugin.sendChatMessage("Setting ht to "+combinedHeight);
-        return new Dimension(223, combinedHeight);
     }
 
     public void createJPanelListener(JPanel panel, String panelName, String subType) {
