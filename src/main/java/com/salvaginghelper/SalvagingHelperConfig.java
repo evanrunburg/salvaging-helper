@@ -126,7 +126,7 @@ public interface SalvagingHelperConfig extends Config
 	)
 	default Color processColor()
 	{
-		return new Color(180, 0, 204, 255);
+		return new Color(124, 0, 142, 255);
 	}
 
 	@Alpha
@@ -139,7 +139,7 @@ public interface SalvagingHelperConfig extends Config
 	)
 	default Color cargoHoldColor()
 	{
-		return new Color(255, 183, 0, 255);
+		return new Color(255, 141, 252, 255);
 	}
 
 	@Alpha
@@ -155,10 +155,6 @@ public interface SalvagingHelperConfig extends Config
 		return Color.BLACK;
 	}
 	//endregion
-
-
-
-
 
     //region Alerts - General
     @ConfigSection(

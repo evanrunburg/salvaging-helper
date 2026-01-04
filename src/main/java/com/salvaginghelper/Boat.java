@@ -14,21 +14,10 @@ public class Boat {
 
 
     //region General Variables
-    // TODO: add other facilities
     @Getter @Setter
-    private int boatType; // 0=raft(?), 1=skiff, 2=sloop
-    @Getter @Setter
-    private GameObject helm;
+    private ActionHandler actionHandler;
     private final SalvagingHelperPlugin plugin;
 
-    @Getter @Setter
-    private GameObject crystalExtractor;
-    @Getter @Setter
-    private int extractorAnimation = -1;
-    @Getter @Setter
-    private GameObject salvagingStation;
-    @Getter @Setter
-    private GameObject[] kegs;
     @Getter @Setter
     private WorldEntity boatEntity;
     @Getter @Setter
@@ -36,7 +25,7 @@ public class Boat {
     @Getter @Setter
     private boolean isOwned;
     @Getter @Setter
-    private ActionHandler actionHandler;
+    private int boatType; // 0=raft(?), 1=skiff, 2=sloop
     //endregion
 
     //region Cargo Hold
@@ -70,6 +59,22 @@ public class Boat {
     @Getter @Setter
     private boolean hookStarboardPlayerAssigned = false;
     //endregion
+
+    //region Other Facilities
+    @Getter @Setter
+    private GameObject crystalExtractor;
+    @Getter @Setter
+    private int extractorAnimation = -1;
+    @Getter @Setter
+    private GameObject salvagingStation;
+    @Getter
+    private GameObject[] kegs;
+    @Getter @Setter
+    private GameObject helm;
+    @Getter
+    private GameObject sails;
+    //endregion
+
 
     //region Maps
     public HashMap<GameObject, HookType> objToHookType = new HashMap<>();
@@ -190,6 +195,10 @@ public class Boat {
 
     public void addKeg(GameObject newKeg) {
         // TODO: slot in and track
+    }
+
+    public void addSails(GameObject newSails) {
+        sails = newSails;
     }
 
     public ArrayList<GameObject> allHooks() {

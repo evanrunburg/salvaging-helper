@@ -396,6 +396,7 @@ public class ActionHandler {
                 case "13": // sails
                     if (isOurs(obj)) {
                         objectHighlightMap.put(obj, clear);
+                        boat.addSails(obj);
                     }
                     return;
                 default:
