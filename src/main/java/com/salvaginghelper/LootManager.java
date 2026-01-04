@@ -2,6 +2,7 @@ package com.salvaginghelper;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import net.runelite.api.Item;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.client.config.ConfigManager;
 
@@ -12,8 +13,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.salvaginghelper.LootManager.*;
-
 public class LootManager {
 
     //private HashMap<Integer, LootConfig> LootConfigMap = new HashMap<>();
@@ -23,9 +22,9 @@ public class LootManager {
     public HashMap<LootOption, Color> lootOptionToColor = new HashMap<>();
     //private HashMap<Integer, LootItem> LeftClickMap = new HashMap<>();
 
-    private ConfigManager configManager;
-    private SalvagingHelperConfig config;
-    private SalvagingHelperPlugin plugin;
+    final private ConfigManager configManager;
+    final private SalvagingHelperConfig config;
+    final private SalvagingHelperPlugin plugin;
 
     private final static String ITEM_FILE_PATH = "src/main/resources/LootItemData.txt";
     private final static String ITEM_DELIM = ",";
@@ -34,7 +33,7 @@ public class LootManager {
     // https://oldschool.runescape.wiki/w/Salvage
     private static final int[] opulentSalvageItems = { 31406, 32869, 32115, 11334, 31979, 31914, 31916, 5296, 5297, 5281,
             5106, 5298, 5280, 22873, 5299, 5300, 5301, 5302, 22879, 5303, 5304, 211, 207, 3051, 219, 213, 217, 215, 2485,
-            1625, 1627, 1629, 442, 2355, 5525, 1993, 2007, 958, 950, 995, 13204};
+            1625, 1627, 1629, 442, 2355, 5525, 1993, 2007, 958, 950, 995, 13204 };
     private static final int[] fremennikSalvageItems = { 32398, 32870, 331, 359, 377, 7944, 3749, 3751, 3755, 3753, 3748,
             447, 10810, 4823, 4824, 8782, 31545, 31549, 31515, 31551, 9075, 13483, 31914 };
     private static final int[] martialSalvageItems = { 32398, 32868, 31916, 32099, 1299, 1301, 1317, 1135, 1303, 43, 822,
@@ -167,18 +166,22 @@ public class LootManager {
         }
     }
 
-/*    public LootOption toLootCategory(int itemId) {
-        return CategoryMap.get(itemId);
+    public void rebuildUnderlayColorMap() {
+        for (int item : underlayColorMap.keySet()) {
+            LootItem lootItem = lootItemMap.get(item);
+            setLootColor(item, lootItem.getLootCategory(), config);
+        }
     }
-
-    public void updateCategoryMap(int itemId, LootOption category) {
-        CategoryMap.put(itemId, category);
-        setLootColor(itemId, category);
-    }*/
 
     public Color toLootColor(int itemId) {
         return underlayColorMap.get(itemId);
     }
 
+    public LootItem getLootItem(int itemId) {
+        return lootItemMap.get(itemId);
+    }
 
+    public LootItem getLootItem(Item item) {
+        return lootItemMap.get(item.getId());
+    }
 }

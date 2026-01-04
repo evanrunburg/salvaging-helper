@@ -7,25 +7,20 @@ import net.runelite.api.GameObject;
 import net.runelite.api.ObjectID;
 import net.runelite.api.WorldEntity;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Boat {
 
+
+    //region General Variables
     // TODO: add other facilities
     @Getter @Setter
-    private int boatType; // 0=not on boat, 1=skiff, 2=sloop
-    @Getter @Setter
-    private GameObject hookPort; // 60508
-    @Getter @Setter
-    private HookType hookPortType;
-    @Getter @Setter
-    private GameObject hookStarboard; // 60507
-    @Getter @Setter
-    private HookType hookStarboardType;
+    private int boatType; // 0=raft(?), 1=skiff, 2=sloop
     @Getter @Setter
     private GameObject helm;
-    @Getter @Setter
-    private GameObject cargoHold;
+    private final SalvagingHelperPlugin plugin;
+
     @Getter @Setter
     private GameObject crystalExtractor;
     @Getter @Setter
@@ -42,10 +37,45 @@ public class Boat {
     private boolean isOwned;
     @Getter @Setter
     private ActionHandler actionHandler;
+    //endregion
 
+    //region Cargo Hold
+    @Getter
+    private GameObject cargoHold;
+    private HoldType cargoHoldType;
+    private int cargoHoldId = -1;
+    @Getter
+    private int cargoHoldCapacity = 0;
+    //endregion
+
+    //region Salvaging Hooks
+    @Getter
+    private GameObject hookPort;
+    @Getter
+    private int hookPortId = -1;
+    @Getter
+    private HookType hookPortType;
+    @Getter @Setter
+    private Crewmate hookPortAssignedCrewmate;
+    @Getter @Setter
+    private boolean hookPortPlayerAssigned = false;
+    @Getter
+    private GameObject hookStarboard;
+    @Getter
+    private int hookStarboardId = -1;
+    @Getter
+    private HookType hookStarboardType;
+    @Getter @Setter
+    private Crewmate hookStarboardAssignedCrewmate;
+    @Getter @Setter
+    private boolean hookStarboardPlayerAssigned = false;
+    //endregion
+
+    //region Maps
     public HashMap<GameObject, HookType> objToHookType = new HashMap<>();
     public HashMap<Integer, HookType> idToHookType = new HashMap<>();
-    //public HashMap<GameObject, HookType> toHookType = new HashMap<>();
+    public HashMap<Integer, GameObject> idToHookObj = new HashMap<>();
+    //endregion
 
     @RequiredArgsConstructor @Getter
     public enum HookType { // TODO: figure out actual ranges...
@@ -69,51 +99,118 @@ public class Boat {
         }
     }
 
-    public Boat(SalvagingHelperPlugin plugin) {
-        for (HookType hookType : HookType.values()) {
-            idToHookType.put(hookType.getRaftId(), hookType);
-            idToHookType.put(hookType.getSkiffId(), hookType);
-            idToHookType.put(hookType.getSloopId1(), hookType);
-            idToHookType.put(hookType.getSloopId2(), hookType);
+    @RequiredArgsConstructor @Getter
+    public enum HoldType {
+        BASIC("Basic cargo hold", 60245, 60259, 60273, 20, 30, 40),
+        OAK("Oak cargo hold", 60247, 60261, 60275, 30, 45, 60),
+        TEAK("Teak cargo hold", 60249, 60263, 60277, 45, 60, 90),
+        MAHOGANY("Mahogany cargo hold", 60251, 60265, 60279, 60, 90, 120),
+        CAMPHOR("Camphor cargo hold", 60253, 60267, 60281, 80, 120, 160),
+        IRONWOOD("Ironwood cargo hold", 60255, 60269, 60283, 105, 150, 210),
+        ROSEWOOD("Rosewood cargo hold", 60257, 60271, 60285, 120, 180, 240);
+
+        private final String name;
+        private final int raftId;
+        private final int skiffId;
+        private final int sloopId;
+        private final int raftCapacity;
+        private final int skiffCapacity;
+        private final int sloopCapacity;
+
+        public static int getCapacity(HoldType type, int shipType) {
+            if (shipType==0) { return type.raftCapacity; }
+            if (shipType==1) { return type.skiffCapacity; }
+            if (shipType==2) { return type.sloopCapacity; }
+            return -1;
+        }
+
+        public int getId(HoldType type, int shipType) {
+            if (shipType==0) { return type.raftId; }
+            if (shipType==1) { return type.skiffId; }
+            if (shipType==2) { return type.sloopId; }
+            return -1;
+        }
+
+        public static ArrayList<Integer> getAllIds() {
+            ArrayList<Integer> ids = new ArrayList<>();
+            for (HoldType holdType : HoldType.values()) {
+                ids.add(holdType.getRaftId());
+                ids.add(holdType.getSkiffId());
+                ids.add(holdType.getSloopId());
+            }
+            return ids;
+        }
+
+        public static HoldType idToEnumVal(GameObject obj) {
+            int id = obj.getId();
+            if (id==BASIC.raftId || id==BASIC.skiffId || id==BASIC.sloopId) { return BASIC; }
+            if (id==OAK.raftId || id==OAK.skiffId || id==OAK.sloopId) { return OAK; }
+            if (id==TEAK.raftId || id==TEAK.skiffId || id==TEAK.sloopId) { return TEAK; }
+            if (id==MAHOGANY.raftId || id==MAHOGANY.skiffId || id==MAHOGANY.sloopId) { return MAHOGANY; }
+            if (id==CAMPHOR.raftId || id==CAMPHOR.skiffId || id==CAMPHOR.sloopId) { return CAMPHOR; }
+            if (id==IRONWOOD.raftId || id==IRONWOOD.skiffId || id==IRONWOOD.sloopId) { return IRONWOOD; }
+            if (id==ROSEWOOD.raftId || id==ROSEWOOD.skiffId || id==ROSEWOOD.sloopId) { return ROSEWOOD; }
+            return null;
         }
     }
 
+    public Boat(SalvagingHelperPlugin plugin) {
+        this.plugin = plugin;
+        buildHookTypeMap();
+    }
+
     public void addHook(GameObject newHook) {
-        // TODO: determine which side the hook is and slot it in
-        // TODO; for non sloops
-        if (newHook.getId()==60508) {
-            setHookPort(newHook);
-            setHookPortType(HookType.RUNE_HOOK);
-            objToHookType.put(newHook, HookType.RUNE_HOOK);
-        } else if (newHook.getId()==60507) {
-            setHookStarboard(newHook);
-            setHookStarboardType(HookType.RUNE_HOOK);
-            objToHookType.put(newHook, HookType.RUNE_HOOK);
-        } else if (newHook.getId()==60493) {
-            setHookStarboard(newHook);
-            setHookStarboardType(HookType.MITHRIL_HOOK);
-            objToHookType.put(newHook, HookType.MITHRIL_HOOK);
-        } else if (newHook.getId()==60504) {
-            setHookPort(newHook);
-            setHookPortType(HookType.MITHRIL_HOOK);
-            objToHookType.put(newHook, HookType.MITHRIL_HOOK);
-        } else if (newHook.getId()==60503) {
-            setHookStarboard(newHook);
-            setHookStarboardType(HookType.MITHRIL_HOOK);
-            objToHookType.put(newHook, HookType.MITHRIL_HOOK);
-        } else if (newHook.getId()==60491) {
-            setHookStarboard(newHook);
-            setHookStarboardType(HookType.IRON_HOOK);
+        int newId = newHook.getId();
+        HookType newHookType = idToHookType.get(newId);
+        idToHookObj.put(newId, newHook);
+        objToHookType.put(newHook, newHookType);
+
+        if (boatType==0 || boatType==1 || (boatType==2 && newId==newHookType.getSloopId1())) {
+            hookStarboard = newHook;
+            hookStarboardId = newId;
+            hookStarboardType = newHookType;
+            // TODO - determine crewmate/player assignment
+            return;
+        } else if (boatType==2 && newId==newHookType.getSloopId2()) {
+            hookPort = newHook;
+            hookPortId = newId;
+            hookPortType = newHookType;
+            return;
+        } else {
+            plugin.sendChatMessage("Uncaught boat/hook combination - failed to add hook "+newId, false);
         }
+    }
+
+    public void addHold(GameObject newCargoHold) {
+        cargoHoldId = newCargoHold.getId();
+        cargoHold = newCargoHold;
+        cargoHoldType = HoldType.idToEnumVal(newCargoHold);
+        cargoHoldCapacity = HoldType.getCapacity(cargoHoldType, boatType);
     }
 
     public void addKeg(GameObject newKeg) {
         // TODO: slot in and track
     }
 
+    public ArrayList<GameObject> allHooks() {
+        ArrayList<GameObject> hooks = new ArrayList<>();
+        if (hookPort!=null) { hooks.add(hookPort); }
+        if (hookStarboard!=null) { hooks.add(hookStarboard); }
+        return hooks;
+    }
+
     public int getSalvageRange() {
         int portSideRange = (hookPort != null) ? getHookPortType().getRange() : 0;
         int starboardSideRange = (hookStarboard != null) ? getHookStarboardType().getRange() : 0;
         return Math.max(portSideRange, starboardSideRange);
+    }
+
+    private void buildHookTypeMap() {
+        for (HookType hookType : HookType.values()) {
+            idToHookType.put(hookType.getRaftId(), hookType);
+            idToHookType.put(hookType.getSkiffId(), hookType);
+            idToHookType.put(hookType.getSloopId1(), hookType);
+            idToHookType.put(hookType.getSloopId2(), hookType);
+        }
     }
 }

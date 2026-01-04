@@ -53,7 +53,6 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final ImageIcon ICON_RESET = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_restart_20px.png"));
     private final ImageIcon ICON_IMPORT = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_download_20px.png"));
     private final ImageIcon ICON_EXPORT = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_upload_20px.png"));
-    private final ImageIcon ICON_SETTINGS = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_settings_20px.png"));
 
 
     private final int SIDEBAR_WIDTH = 249;
@@ -154,17 +153,24 @@ public class SalvagingHelperPanel extends PluginPanel {
 
 
     public JPanel buildDebugPanel() {
-        JPanel debugContainer = new JPanel(new BorderLayout());
-        JButton dumpButton = new JButton("Dump game objects");
-        dumpButton.addActionListener(e -> {
-            plugin.actionHandler.dumpGameObjects(client);
-        });
-        debugContainer.add(dumpButton);
-        JButton idleNotifyButton = new JButton("Check idle notify vars");
-        dumpButton.addActionListener(e -> {
-            plugin.actionHandler.dumpGameObjects(client);
-        });
-        debugContainer.add(dumpButton);
+        JPanel debugContainer = new JPanel();
+        debugContainer.setLayout(new BoxLayout(debugContainer, BoxLayout.Y_AXIS));
+
+        JButton dumpShipwrecksButton = new JButton("Dump tracked shipwrecks");
+        dumpShipwrecksButton.addActionListener(e -> {
+            plugin.actionHandler.dumpGameObjects(client); });
+        debugContainer.add(dumpShipwrecksButton);
+
+        JButton idleNotifyButton = new JButton("Send idle notification");
+        idleNotifyButton.addActionListener(e -> {
+            plugin.sendIdleNotification(); });
+        debugContainer.add(idleNotifyButton);
+
+        JButton dumpLogicButton = new JButton("Reveal logic engine vars");
+        dumpLogicButton.addActionListener(e -> {
+            plugin.actionHandler.dumpActionHandlerVars(); });
+        debugContainer.add(dumpLogicButton);
+
         return debugContainer;
     }
 
@@ -234,7 +240,6 @@ public class SalvagingHelperPanel extends PluginPanel {
         lootContainer.add(toolbarPanel, BorderLayout.NORTH);
         lootContainer.add(contentPanel, BorderLayout.CENTER);
         //endregion
-
 
         return lootContainer;
     }
@@ -314,9 +319,6 @@ public class SalvagingHelperPanel extends PluginPanel {
             JPanel itemPanel = new JPanel(new BorderLayout(0, 0));
 
             LootItem lootItem = lootManager.lootItemMap.get(itemId);
-
-            createJPanelListener(itemPanel, "Item Panel", lootItem.getName());
-
 
             itemPanel.setBorder(new EmptyBorder(ITEM_PANEL_PADDING, ITEM_PANEL_PADDING, ITEM_PANEL_PADDING,
                     ITEM_PANEL_PADDING));
@@ -469,7 +471,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         }
     }
 
-    public void createJPanelListener(JPanel panel, String panelName, String subType) {
+/*    public void createJPanelListener(JPanel panel, String panelName, String subType) {
         panel.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -496,7 +498,7 @@ public class SalvagingHelperPanel extends PluginPanel {
                 }
             }
         });
-    }
+    }*/
 
 
 }

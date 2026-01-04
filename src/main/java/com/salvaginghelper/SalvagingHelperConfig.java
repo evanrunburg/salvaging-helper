@@ -16,18 +16,6 @@ public interface SalvagingHelperConfig extends Config
 			description = "General settings",
 			position = 1)
 	String generalSection = "generalSection";
-
-	@ConfigItem(
-			position = 1,
-			keyName = "toggleToExecute",
-			name = "Toggle to Execute Code",
-			description = "For when I can't figure out how else to dump info on demand.",
-			section = generalSection
-	)
-	default boolean toggleToExecute()
-	{
-		return true;
-	}
     //endregion
 
 
@@ -237,7 +225,7 @@ public interface SalvagingHelperConfig extends Config
 			description = "Configures what type of tray notification to send, if any.",
 			section = idleAlertsSection
 	)
-	default TrayIcon.MessageType idleTrayType() { return TrayIcon.MessageType.WARNING; }
+	default TrayIcon.MessageType idleTrayType() { return TrayIcon.MessageType.INFO; }
 
 	@ConfigItem(
 			position = 4,

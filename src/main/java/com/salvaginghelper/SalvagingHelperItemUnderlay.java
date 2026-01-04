@@ -30,7 +30,6 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
     public void renderItemOverlay(Graphics2D graphics, int itemId, WidgetItem widgetItem)
     {
         if (!config.enableLootOverlays() || !plugin.onBoat) { return; }
-
         // Canonicalize for base item ID to match against our lists, but remember to
         // render against actual item ID later for correct underlay
         int finalItemId = itemManager.canonicalize(itemId);
@@ -38,9 +37,13 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
         if (color==null) {
             return;
         } else {
-            Rectangle bounds = widgetItem.getCanvasBounds();
-            final BufferedImage outline = itemManager.getItemOutline(itemId, widgetItem.getQuantity(), color);
-            graphics.drawImage(outline, (int) bounds.getX(), (int) bounds.getY(), null);
+            // While cargo hold is open, only render depositable items
+            if (widgetItem.getWidget().getId()!=61865985 | color.equals(config.cargoHoldColor()) ) {
+                //plugin.sendChatMessage("Widget item ID: "+widgetItem.getId()+", widget ID: "+widgetItem.getWidget().getId()+", name"+widgetItem.getWidget().getName(), true);
+                Rectangle bounds = widgetItem.getCanvasBounds();
+                final BufferedImage outline = itemManager.getItemOutline(itemId, widgetItem.getQuantity(), color);
+                graphics.drawImage(outline, (int) bounds.getX(), (int) bounds.getY(), null);
+            }
         }
     }
 }

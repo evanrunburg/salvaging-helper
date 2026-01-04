@@ -77,6 +77,7 @@ public class SalvagingHelperPlugin extends Plugin
 			60473, 60475, 60477, 60479));
 	public final static ArrayList<Integer> salvageItemIds = new ArrayList<>(List.of(32847, 32849, 32851, 32853, 32855,
 			32857, 32859, 32861));
+	public final static ArrayList<Integer> cargoHoldIds = Boat.HoldType.getAllIds();
 
 	// Status variables about one's current voyage
 	List<Crewmate> activeCrewmates = new ArrayList<>(5);
@@ -170,7 +171,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 		// Concept managers
 		lootManager = new LootManager(this, config, configManager);
-		actionHandler = new ActionHandler(this, config, client, activeCrewmates, objectOverlay, currentBoat);
+		actionHandler = new ActionHandler(this, config, client, lootManager, activeCrewmates, objectOverlay, currentBoat);
 
 		// UI
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "salvaging_helper_icon.png");
@@ -199,18 +200,6 @@ public class SalvagingHelperPlugin extends Plugin
     //endregion
 
     //region Debug/Dev
-    public void debugLog(List<String> elements, SalvagingHelperPlugin plugin) {
-		if (!debug) { return; }
-		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-		String message = timestamp + "|" + String.join("|", elements)+"\n";
-		try {
-			Files.writeString(plugin.LOG_FILE_PATH_VARBIT, message, StandardOpenOption.APPEND);
-			log.debug(message);
-		} catch (IOException e) {
-			log.debug("Error writing to log file: " + plugin.LOG_FILE_PATH_VARBIT);
-		}
-	}
-
 	public void sendChatMessage(String chatMessage, boolean alwaysSend) {
 		if (alwaysSend || debug) {
 			final String message = new ChatMessageBuilder()
@@ -293,7 +282,12 @@ public class SalvagingHelperPlugin extends Plugin
 	private void onConfigChanged(final ConfigChanged event) {
 		// TODO - create...?
 		debug = config.debugModeEnabled();
-		return;
+		String key = event.getKey();
+		if (key.equals("keepColor") || key.equals("dropColor") || key.equals("containerColor") || key.equals("alchColor")
+				|| key.equals("consumeColor") || key.equals("equipColor") || key.equals("processColor")
+				|| key.equals("cargoHoldColor") || key.equals("otherColor")) {
+			lootManager.rebuildUnderlayColorMap();
+		}
 	}
 
 	@Subscribe
@@ -301,7 +295,6 @@ public class SalvagingHelperPlugin extends Plugin
 		int vbId = event.getVarbitId();
 		int val = event.getValue();
 		switch (vbId) {
-
 			//region Boat and Crew
 			case VarbitID.SAILING_BOARDED_BOAT:
 				onBoat = (val > 0);
@@ -476,7 +469,7 @@ public class SalvagingHelperPlugin extends Plugin
 		if (actor instanceof Player) {
 			if (actor == client.getLocalPlayer()) {
 				if (!onBoat) { return; }
-				actionHandler.processPlayerAnimation(this, event, client.getLocalPlayer(), animationId);
+				actionHandler.processPlayerAnimation(event, client.getLocalPlayer(), animationId);
 			}
 		} else if (actor instanceof NPC) {
 			for (Crewmate crewmate : activeCrewmates) {
@@ -516,7 +509,6 @@ public class SalvagingHelperPlugin extends Plugin
 		// sendChatMessage(itemChange.toString()+" / size: "+container.size());
 		switch (containerId) {
 			case 93: // inventory
-				inventoryContainer = container;
 				actionHandler.setInventory(container);
 				inventoryItems = new ArrayList<>(List.of(container.getItems()));
 				return;
@@ -560,6 +552,16 @@ public class SalvagingHelperPlugin extends Plugin
 	// TODO - parse status of item containers
 	@Subscribe
 	private void onChatMessage(final ChatMessage event) {
+		if (event.getMessage().contains("Your crewmate on the salvaging hook cannot salvage as the cargo hold is full.")
+				) {
+			actionHandler.cargoHoldFull = true;
+		}
+		if (event.getMessage().contains("have enough space for the herbs.") // apostrophe?
+		) {
+			//sendChatMessage("Sender: "+event.getSender(), false);
+			//actionHandler.cargoHoldFull = true;
+			actionHandler.isHerbSackFull = true;
+		}
 
 	}
 
@@ -571,6 +573,23 @@ public class SalvagingHelperPlugin extends Plugin
 			actionHandler.objectHighlightMap.clear();
 			actionHandler.npcHighlightMap.clear();
 			sendChatMessage("Clearing all cached objects and NPCs.", false);
+		}
+	}
+
+	@Subscribe
+	private void onWidgetLoaded(WidgetLoaded event) {
+		if (event.getGroupId() == 943) { // Cargo hold popup
+			if (currentBoat.getCargoHold() != null) {
+				actionHandler.cargoHoldFull = false;
+				actionHandler.objectHighlightMap.put(currentBoat.getCargoHold(), actionHandler.clear);
+			}
+		}
+	}
+
+	@Subscribe
+	private void onWidgetClosed(WidgetClosed event) {
+		if (event.getGroupId() == 943) { // Cargo hold popup
+			actionHandler.cargoHoldFull = false;
 		}
 	}
     //endregion
