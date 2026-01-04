@@ -3,7 +3,6 @@ package com.salvaginghelper;
 import net.runelite.api.*;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -14,11 +13,8 @@ import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.geom.CubicCurve2D;
-import java.awt.geom.QuadCurve2D;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SalvagingHelperObjectOverlay extends Overlay {
@@ -130,7 +126,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
         if (!plugin.onBoat) { return null; }
 
         graphics.setFont(FontManager.getRunescapeFont());
-        WorldEntity boatEntity = plugin.currentBoat.getBoatEntity();
+        WorldEntity boatEntity = plugin.boat.getBoatEntity();
 
         // game objects (facilities)
         for (GameObject obj : gameObjectsToHighlight.keySet()) {
@@ -188,8 +184,8 @@ public class SalvagingHelperObjectOverlay extends Overlay {
 
         // Salvaging hook underlays
         int w = 8, h = 8;
-        drawHookOverlay(graphics, plugin.currentBoat.getHookPort(), boatEntity, w, h);
-        drawHookOverlay(graphics, plugin.currentBoat.getHookStarboard(), boatEntity, w, h);
+        drawHookOverlay(graphics, plugin.boat.getHookPort(), boatEntity, w, h);
+        drawHookOverlay(graphics, plugin.boat.getHookStarboard(), boatEntity, w, h);
 
         // crystal extractor
 

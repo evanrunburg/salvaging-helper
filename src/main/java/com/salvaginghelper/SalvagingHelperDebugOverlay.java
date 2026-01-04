@@ -3,7 +3,6 @@ package com.salvaginghelper;
 import net.runelite.api.*;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -12,8 +11,6 @@ import net.runelite.client.ui.FontManager;
 
 import javax.inject.Inject;
 import java.awt.*;
-import java.awt.geom.QuadCurve2D;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 public class SalvagingHelperDebugOverlay extends Overlay {
@@ -58,7 +55,7 @@ public class SalvagingHelperDebugOverlay extends Overlay {
                 if (mate==null) {
                     OverlayUtil.renderTextLocation(graphics, new Point(10,50 + 16*(i+2)), i+1+". Empty", debugOverlayColor);
                 } else {
-                    LocalPoint loc = (mate.getCrewmateNpc() != null) ? plugin.currentBoat.getBoatEntity().transformToMainWorld(mate.getCrewmateNpc().getLocalLocation()) : null;
+                    LocalPoint loc = (mate.getCrewmateNpc() != null) ? plugin.boat.getBoatEntity().transformToMainWorld(mate.getCrewmateNpc().getLocalLocation()) : null;
                     OverlayUtil.renderTextLocation(graphics, new Point(10,50 + 16*(i+2)), i+1+". "+mate.getName(), debugOverlayColor);
                     OverlayUtil.renderTextLocation(graphics, new Point(140,50 + 16*(i+2)), String.valueOf(mate.getCurrentStatus()), debugOverlayColor);
                     OverlayUtil.renderTextLocation(graphics, new Point(220,50 + 16*(i+2)), mate.mapAssignedStation(mate.getAssignedStationNumber()), debugOverlayColor);

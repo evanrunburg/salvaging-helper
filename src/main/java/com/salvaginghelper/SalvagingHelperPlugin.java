@@ -23,18 +23,12 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
-import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import com.salvaginghelper.Crewmate.Activity;
 import net.runelite.client.util.ImageUtil;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.nio.file.*;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 
@@ -56,19 +50,8 @@ import java.util.List;
 public class SalvagingHelperPlugin extends Plugin
 {
     //region Variable Declarations
-    private Path LOG_FILE_PATH_VARBIT;
-	private LookupTable VarbNameTable;
-	private LookupTable VarpNameTable;
-	private LookupTable VBLT;
-	private LookupTable VPLT;
 	public LookupTable ObjectTable;
-	private static final int VARBIT_WHITELIST = 2;
-	private static final int VARBIT_BLACKLIST = 3;
-	private static final int VARBIT_SAILING_LIST = 4;
-
-	public boolean debug = true;
-	public Instant startTime;
-
+	public boolean debug;
 	public final static ArrayList<Integer> shipwreckRespawnAnimIds = new ArrayList<>(Arrays.asList(13603, 13607, 13611,
 			13615, 13619, 13623, 13627, 13631));
 	public final static ArrayList<Integer> activeShipwreckIds = new ArrayList<>(List.of(60464, 60466, 60468, 60470,
@@ -78,6 +61,7 @@ public class SalvagingHelperPlugin extends Plugin
 	public final static ArrayList<Integer> salvageItemIds = new ArrayList<>(List.of(32847, 32849, 32851, 32853, 32855,
 			32857, 32859, 32861));
 	public final static ArrayList<Integer> cargoHoldIds = Boat.HoldType.getAllIds();
+	public ArrayList<NPC> enemyCrewmates = new ArrayList<>();
 
 	// Status variables about one's current voyage
 	List<Crewmate> activeCrewmates = new ArrayList<>(5);
@@ -94,16 +78,11 @@ public class SalvagingHelperPlugin extends Plugin
 	private NavigationButton navigationButton;
 	private int playerAtFacility=-1;
 	public int crewmateCount=0;
-	public Boat currentBoat = new Boat(this);
+	public Boat boat = new Boat(this);
 
 	// Player specific variables
 	private int[][] runePouch = new int[4][2]; // runePouch[slot]={runeType, runeQuantity}
 	private int[] plankSack = new int[7]; // 0-6 are normal through rosewood
-	@Getter
-	private ItemContainer inventoryContainer;
-	@Getter
-	private ArrayList<Item> inventoryItems;
-
     //endregion
 
     //region Plugin Boilerplate
@@ -143,26 +122,21 @@ public class SalvagingHelperPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
-	private SalvagingHelperPanel sidePanel;
-
-	@Inject
-	private ColorPickerManager colorPickerManager;
-
 	public LootManager lootManager;
 
 	@Override
 	protected void startUp() throws Exception {
 		debug = config.debugModeEnabled();
+		boat.setActionHandler(actionHandler);
 
 		// Mappings
 		ObjectTable = new LookupTable("src/main/resources/sailingobjects.properties");
-
 		activeCrewmates.add(0, null);
 		activeCrewmates.add(1, null);
 		activeCrewmates.add(2, null);
 		activeCrewmates.add(3, null);
 		activeCrewmates.add(4, null);
-		currentBoat.setActionHandler(actionHandler);
+
 
 		// Graphics
 		overlayManager.add(itemOverlay);
@@ -171,11 +145,11 @@ public class SalvagingHelperPlugin extends Plugin
 
 		// Concept managers
 		lootManager = new LootManager(this, config, configManager);
-		actionHandler = new ActionHandler(this, config, client, lootManager, activeCrewmates, objectOverlay, currentBoat);
+		actionHandler = new ActionHandler(this, config, client, lootManager, activeCrewmates, objectOverlay, boat);
 
 		// UI
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "salvaging_helper_icon.png");
-		sidePanel = new SalvagingHelperPanel(this, config, client, itemManager, configManager, lootManager, clientThread);
+        SalvagingHelperPanel sidePanel = new SalvagingHelperPanel(this, config, client, itemManager, configManager, lootManager, clientThread);
 		navigationButton = NavigationButton.builder()
 				.tooltip("Salvaging Helper")
 				.icon(icon)
@@ -217,40 +191,37 @@ public class SalvagingHelperPlugin extends Plugin
     //endregion
 
     //region Event Listeners
-
     @Subscribe
 	public void onGameTick(GameTick gameTick) {
 		if (!onBoat) { return; }
 
-		// TODO: do we need to increase/decrease the priority to make sure we have data?
-
 		// Plugin keeps mysteriously detaching NPCs in testing :)
-		if (onBoat && crewmateCount>0) {
+		if (crewmateCount>0) {
 			for (Crewmate mate : activeCrewmates) {
 				if (mate != null && mate.getCrewmateNpc()==null) { mate.rescanNPCs(); }
 			}
 		}
 		actionHandler.buildCrewmateMap(activeCrewmates);
-		crewmateCount = Math.toIntExact(activeCrewmates.stream().filter(Objects::nonNull).count()); // TODO - copy this around?
+		crewmateCount = (int) activeCrewmates.stream().filter(Objects::nonNull).count();
 
-		// Check animation state of particular objects that transmog instead of triggering event handlers
-		GameObject extractor = currentBoat.getCrystalExtractor();
+		// Manually poll animation state of particular objects that transmog instead of triggering event handlers
+		GameObject extractor = boat.getCrystalExtractor();
 		if (extractor != null) {
 			switch (actionHandler.getObjectAnimation(extractor)) {
 				case 13174:
 					actionHandler.objectHighlightMap.put(extractor, Color.RED);
-					currentBoat.setExtractorAnimation(13174);
+					boat.setExtractorAnimation(13174);
 					break;
 				case 13177:
 					actionHandler.objectHighlightMap.put(extractor, Color.GREEN);
-					if (currentBoat.getExtractorAnimation() != 13177) {
-						currentBoat.setExtractorAnimation(13177);
+					if (boat.getExtractorAnimation() != 13177) {
+						boat.setExtractorAnimation(13177);
 						sendExtractorNotification();
 					}
 					break;
 				case 13175:
 					actionHandler.objectHighlightMap.put(extractor, new Color(0, 0, 0, 0));
-					currentBoat.setExtractorAnimation(13175);
+					boat.setExtractorAnimation(13175);
 					break;
 				default:
 					sendChatMessage("Error with crystal extractor animation: "+actionHandler.getObjectAnimation(extractor), false);
@@ -258,19 +229,13 @@ public class SalvagingHelperPlugin extends Plugin
 
 		}
 
-		// Notification/activity tracking
-		//notificationManager.setLastMouseClick(Instant.now().minusMillis((long) (0.6*client.getMouseLastPressedMillis())));
-		//notificationManager.setLastMouseMovement(Instant.now().minusMillis(600*client.getMouseIdleTicks()));
-
-		//notificationManager.process();
-
-		// "Main"
+		// Main logic
 		directions = actionHandler.determineState(this, client);
 	}
 
 	@Subscribe
 	public void onGameObjectSpawned(GameObjectSpawned event) {
-		actionHandler.processObject(event.getGameObject(), ObjectTable, currentBoat);
+		actionHandler.processObject(event.getGameObject(), ObjectTable, boat);
 	}
 
 	@Subscribe
@@ -280,9 +245,9 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onConfigChanged(final ConfigChanged event) {
-		// TODO - create...?
 		debug = config.debugModeEnabled();
 		String key = event.getKey();
+		// TODO - can we simplify this by looking at a key's parent value? event.getGroup() just gives us plugin name...
 		if (key.equals("keepColor") || key.equals("dropColor") || key.equals("containerColor") || key.equals("alchColor")
 				|| key.equals("consumeColor") || key.equals("equipColor") || key.equals("processColor")
 				|| key.equals("cargoHoldColor") || key.equals("otherColor")) {
@@ -300,7 +265,7 @@ public class SalvagingHelperPlugin extends Plugin
 				onBoat = (val > 0);
 				return;
 			case VarbitID.SAILING_SIDEPANEL_BOAT_MOVE_MODE:
-				currentBoat.setBoatMoveMode(val);
+				boat.setBoatMoveMode(val);
 				return;
 			case VarbitID.SAILING_CREW_SLOT_1:
 				replaceCrewMember(1, val);
@@ -318,7 +283,7 @@ public class SalvagingHelperPlugin extends Plugin
 				replaceCrewMember(5, val);
 				return;
 			case VarbitID.SAILING_CREW_SLOT_1_POSITION:
-				activeCrewmates.get(0).setAssignedStationNumber(val);
+				activeCrewmates.get(0).setAssignedStationNumber(val); // TODO - use this info
 				return;
 			case VarbitID.SAILING_CREW_SLOT_2_POSITION:
 				activeCrewmates.get(1).setAssignedStationNumber(val);
@@ -333,15 +298,15 @@ public class SalvagingHelperPlugin extends Plugin
 				activeCrewmates.get(4).setAssignedStationNumber(val);
 				return;
 			case VarbitID.SAILING_PLAYER_IS_ON_PLAYER_BOAT:
-				currentBoat.setOwned(val > 0);
+				boat.setOwned(val > 0);
 				return;
 			case VarbitID.SAILING_BOARDED_BOAT_TYPE:
-				currentBoat.setBoatType(val);
+				boat.setBoatType(val);
 				return;
 			//endregion
 
 			//region Facilities, Stations, Assignments
-			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT0:
+			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT0: // TODO - use this info
 				boatHotspots[0] = val;
 				return;
 			case VarbitID.SAILING_SIDEPANEL_FACILITY_HOTSPOT1:
@@ -463,7 +428,6 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onAnimationChanged(final AnimationChanged event) {
-		// TODO
 		Actor actor = event.getActor();
 		int animationId = actor.getAnimation();
 		if (actor instanceof Player) {
@@ -486,8 +450,12 @@ public class SalvagingHelperPlugin extends Plugin
 		NPC npc = event.getNpc();
 		// The only thing distinguishing our crewmates from other players' crewmates is that they share a WorldView
 		// with the one our player (but not client) occupies
-		if (Crewmate.isNPCSailingCrewmate(npc) && npc.getLocalLocation().getWorldView()==client.getLocalPlayer().getWorldView().getId()) {
-			Crewmate.matchNPCToCrewmates(npc, activeCrewmates, client.getLocalPlayer());
+		if (Crewmate.isNPCSailingCrewmate(npc)) {
+			if (npc.getLocalLocation().getWorldView()==client.getLocalPlayer().getWorldView().getId()) {
+				Crewmate.matchNPCToCrewmates(npc, activeCrewmates, client.getLocalPlayer());
+			} else {
+				enemyCrewmates.add(npc);
+			}
 		}
 	}
 
@@ -499,6 +467,7 @@ public class SalvagingHelperPlugin extends Plugin
 				crewmate.setCrewmateNpc(null);
 			}
 		}
+        enemyCrewmates.remove(npc);
 	}
 
 	@Subscribe
@@ -510,7 +479,6 @@ public class SalvagingHelperPlugin extends Plugin
 		switch (containerId) {
 			case 93: // inventory
 				actionHandler.setInventory(container);
-				inventoryItems = new ArrayList<>(List.of(container.getItems()));
 				return;
 			case 94: // ?? populates on spawn?
 				return;
@@ -522,7 +490,7 @@ public class SalvagingHelperPlugin extends Plugin
 				actionHandler.cargoHoldNeedsUpdate = true;
 				actionHandler.setCargoHold(container);
 				return;
-			case 33733: // cargo hold also...?
+			case 33733: // cargo hold also...? huh?
 				return;
 			default:
 				return;
@@ -545,7 +513,7 @@ public class SalvagingHelperPlugin extends Plugin
 	private void onWorldEntitySpawned(WorldEntitySpawned event) {
 		WorldEntity entity = event.getWorldEntity();
 		if (entity.getOwnerType()==WorldEntity.OWNER_TYPE_SELF_PLAYER) {
-			currentBoat.setBoatEntity(entity);
+			boat.setBoatEntity(entity);
 		}
 	}
 
@@ -579,9 +547,9 @@ public class SalvagingHelperPlugin extends Plugin
 	@Subscribe
 	private void onWidgetLoaded(WidgetLoaded event) {
 		if (event.getGroupId() == 943) { // Cargo hold popup
-			if (currentBoat.getCargoHold() != null) {
+			if (boat.getCargoHold() != null) {
 				actionHandler.cargoHoldFull = false;
-				actionHandler.objectHighlightMap.put(currentBoat.getCargoHold(), actionHandler.clear);
+				actionHandler.objectHighlightMap.put(boat.getCargoHold(), actionHandler.clear);
 			}
 		}
 	}

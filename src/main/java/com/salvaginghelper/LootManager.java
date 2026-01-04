@@ -71,7 +71,6 @@ public class LootManager {
         private final int[] lootItems;
     }
 
-
     @RequiredArgsConstructor @Getter
     public enum LootOption { // Conditionals are Container, Consume, Equip, Process, Cargo_Hold
         KEEP("Keep"),
@@ -107,17 +106,29 @@ public class LootManager {
 
     // Produce and cache maps here to reduce per-frame overhead and simplify reloading on config change
     public void init() {
-
-        lootOptionToColor = new HashMap<>();
         lootItemMap = new ConcurrentHashMap<>();
         underlayColorMap = new ConcurrentHashMap<>();
-
+        rebuildLootColors();
         initializeItemDefaults();
+    }
+
+    public void rebuildLootColors() {
+        lootOptionToColor.put(LootOption.KEEP, config.keepColor());
+        lootOptionToColor.put(LootOption.DROP, config.dropColor());
+        lootOptionToColor.put(LootOption.CONTAINER, config.containerColor());
+        lootOptionToColor.put(LootOption.ALCH, config.alchColor());
+        lootOptionToColor.put(LootOption.CONSUME, config.consumeColor());
+        lootOptionToColor.put(LootOption.EQUIP, config.equipColor());
+        lootOptionToColor.put(LootOption.PROCESS, config.processColor());
+        lootOptionToColor.put(LootOption.CARGO_HOLD, config.cargoHoldColor());
+        lootOptionToColor.put(LootOption.OTHER, config.otherColor());
     }
 
     private void initializeItemDefaults() {
         // Import per-item properties and defaults from a text file to save space
         // line format: itemID,defaultLootOption,canContainer,canConsume,canEquip,canProcess,canCargoHold,name
+        // (Manually specifying name despite obvious issues to easily allow replacements of overly-long
+        // names with abbreviations, e.g. Dragon cannon barrel -> D. cannon barrel)
         try (BufferedReader br = new BufferedReader(new FileReader(ITEM_FILE_PATH))) {
             String singleLine;
             while ((singleLine = br.readLine()) != null) {
@@ -133,37 +144,8 @@ public class LootManager {
         }
     }
 
-    // TODO: replace with hashmap
     public void setLootColor(int itemId, LootOption lootOption, SalvagingHelperConfig config) {
-        switch (lootOption) {
-            case KEEP:
-                underlayColorMap.put(itemId, config.keepColor());
-                break;
-            case DROP:
-                underlayColorMap.put(itemId, config.dropColor());
-                break;
-            case CONTAINER:
-                underlayColorMap.put(itemId, config.containerColor());
-                break;
-            case ALCH:
-                underlayColorMap.put(itemId, config.alchColor());
-                break;
-            case CONSUME:
-                underlayColorMap.put(itemId, config.consumeColor());
-                break;
-            case EQUIP:
-                underlayColorMap.put(itemId, config.equipColor());
-                break;
-            case PROCESS:
-                underlayColorMap.put(itemId, config.processColor());
-                break;
-            case CARGO_HOLD:
-                underlayColorMap.put(itemId, config.cargoHoldColor());
-                break;
-            case OTHER:
-                underlayColorMap.put(itemId, config.otherColor());
-                break;
-        }
+        underlayColorMap.put(itemId, lootOptionToColor.get(lootOption));
     }
 
     public void rebuildUnderlayColorMap() {

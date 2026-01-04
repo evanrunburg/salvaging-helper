@@ -1,6 +1,5 @@
 package com.salvaginghelper;
 
-import lombok.Getter;
 import lombok.Setter;
 import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
@@ -49,7 +48,7 @@ public class ActionHandler {
     private Instruction currentInstruction = Instruction.JUST_CHILLING;
 
     private ItemContainer inv;
-    private Boat activeBoat;
+    private Boat boat;
     public Color clear = new Color(0, 0, 0, 0);
 
     //region Inventory variables
@@ -130,7 +129,7 @@ public class ActionHandler {
         this.plugin = plugin;
         this.config = config;
         this.objectOverlay = objOverlay;
-        this.activeBoat = boat;
+        this.boat = boat;
         this.lootManager = lootManager;
         this.client = client;
         buildAnimationMap();
@@ -162,32 +161,32 @@ public class ActionHandler {
         // Always evaluate these
         // Salvaging station
         if (invHasSalvage) {
-            highlight(activeBoat.getSalvagingStation(), Color.GREEN);
+            highlight(boat.getSalvagingStation(), Color.GREEN);
         } else {
-            highlight(activeBoat.getSalvagingStation(), clear);
+            highlight(boat.getSalvagingStation(), clear);
         }
         // Cargo hold
-        highlight(activeBoat.getCargoHold(), clear);
-        if ((containsCargoHoldLoot && activeBoat.getCargoHold()!=null)) {
+        highlight(boat.getCargoHold(), clear);
+        if ((containsCargoHoldLoot && boat.getCargoHold()!=null)) {
             //plugin.sendChatMessage("Highlighting cargo hold (Has Cargo Loot)", true);
-            highlight(activeBoat.getCargoHold(), config.cargoHoldColor());
+            highlight(boat.getCargoHold(), config.cargoHoldColor());
         }
         // Ready to grab more salvage out of the cargo hold
         if (!invHasSalvage && !containsDroppableLoot && !containsAlchLoot && !containsContainerableLoot && !containsConsumableLoot &&
                     !containsEquippableLoot && !containsProcessableLoot && (plugin.playerCurrentActivity==Activity.SORTING_SALVAGE ||
                     (plugin.playerCurrentActivity==Activity.EXTRACTING && plugin.playerLastActivity==Activity.SORTING_SALVAGE))) {
-            highlight(activeBoat.getCargoHold(), config.cargoHoldColor());
+            highlight(boat.getCargoHold(), config.cargoHoldColor());
             //plugin.sendChatMessage("Highlighting cargo hold (Ready for More Salvage)", true);
             // TODO - add condition that there's enough salvage in the cargo hold
         }
         if (cargoHoldFull) {
-            highlight(activeBoat.getCargoHold(), Color.RED);
+            highlight(boat.getCargoHold(), Color.RED);
         }
 
         // Needs to move to new spot?
         // all hooks inactive, boat not moving, closest shipwreck
         // TODO: # crewmates assigned to salvage > 0
-        if (inactiveHooks>0 && activeBoat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
+        if (inactiveHooks>0 && boat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
                     && closestInactiveShipwreckDistance < 1400) { // && closestActiveShipwreckDistance>1200
             newInstruction = Instruction.SAIL_TO_SHIPWRECK;
             plugin.sendIdleNotification();
@@ -291,7 +290,7 @@ public class ActionHandler {
                 for (GameObject gameObject : singleTile.getGameObjects()) {
                     if (gameObject==null) { continue; }
                     if (plugin.activeShipwreckIds.contains(gameObject.getId()) && !objectHighlightMap.containsKey(gameObject)) {
-                        processObject(gameObject, plugin.ObjectTable, plugin.currentBoat);
+                        processObject(gameObject, plugin.ObjectTable, plugin.boat);
 
                         // Clear out the current inactive shipwreck unless we're rebuilding both lists from scratch
                         LocalPoint loc = gameObject.getLocalLocation();
@@ -304,7 +303,7 @@ public class ActionHandler {
                             }
                         }
                     } else if (plugin.inactiveShipwreckIds.contains(gameObject.getId()) && rebuild) {
-                        processObject(gameObject, plugin.ObjectTable, plugin.currentBoat);
+                        processObject(gameObject, plugin.ObjectTable, plugin.boat);
                     }
                 }
             }
@@ -508,13 +507,13 @@ public class ActionHandler {
         ArrayList<Integer> idleHookAnims = new ArrayList<>(Arrays.asList(13575, 13582));
         // TODO - figure out real IDs to use
         //13565, 13567, 13572, 13579)); //13574, 13581 wrong?
-        if (activeBoat.getHookPort() != null) {
-            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookPort()))) {
+        if (boat.getHookPort() != null) {
+            if (idleHookAnims.contains(getObjectAnimation(boat.getHookPort()))) {
                 inactiveHooks++;
             } else { activeHooks++; }
         }
-        if (activeBoat.getHookStarboard() != null) {
-            if (idleHookAnims.contains(getObjectAnimation(activeBoat.getHookStarboard()))) {
+        if (boat.getHookStarboard() != null) {
+            if (idleHookAnims.contains(getObjectAnimation(boat.getHookStarboard()))) {
                 inactiveHooks++;
             } else { activeHooks++; }
         }
@@ -557,7 +556,7 @@ public class ActionHandler {
         cargoContainerItems.addAll(List.of(cargoHold.getItems()));
         cargoHoldSalvageCount = cargoContainerItems.stream().filter(x ->
                 plugin.salvageItemIds.contains(x.getId())).count();
-        cargoHoldFull = (activeBoat.getCargoHoldCapacity() == cargoHold.count());
+        cargoHoldFull = (boat.getCargoHoldCapacity() == cargoHold.count());
         cargoHoldNeedsUpdate = false;
     }
 
