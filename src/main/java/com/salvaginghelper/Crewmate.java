@@ -183,10 +183,13 @@ public class Crewmate {
         }
 
         plugin.toCrewmate.put(this.npcId, this);
+        plugin.leftClickManager.deprioNPCMap.put(this.npcId, true); // TODO: make this a config option
 
         if (isOnBoat) {
             matchToNPC();
         }
+
+
 
     }
     //</editor-fold>
@@ -269,7 +272,7 @@ public class Crewmate {
     //
     //
     public String mapAssignedStation(int station) {
-        if (plugin.currentBoat.getBoatType() == 2) {
+        if (plugin.boat.getBoatType() == 2) {
             switch (station) {
                 case 0:
                     return "No Assignment";

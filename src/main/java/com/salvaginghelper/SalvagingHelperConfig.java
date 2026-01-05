@@ -16,6 +16,18 @@ public interface SalvagingHelperConfig extends Config
 			description = "General settings",
 			position = 1)
 	String generalSection = "generalSection";
+
+	@ConfigItem(
+			position = 0,
+			keyName = "Test",
+			name = "test",
+			description = "test.",
+			section = generalSection
+	)
+	default boolean configTest()
+	{
+		return false;
+	}
     //endregion
 
 

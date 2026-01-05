@@ -6,6 +6,7 @@ import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.Menu;
 import net.runelite.api.events.*;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.Notifier;
@@ -19,6 +20,7 @@ import net.runelite.client.config.Notification;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.menus.MenuManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -120,9 +122,13 @@ public class SalvagingHelperPlugin extends Plugin
 	private ChatMessageManager chatMessageManager;
 
 	@Inject
+	private MenuManager menuManager;
+
+	@Inject
 	private ClientThread clientThread;
 
 	public LootManager lootManager;
+	public LeftClickManager leftClickManager;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -146,6 +152,7 @@ public class SalvagingHelperPlugin extends Plugin
 		// Concept managers
 		lootManager = new LootManager(this, config, configManager);
 		actionHandler = new ActionHandler(this, config, client, lootManager, activeCrewmates, objectOverlay, boat);
+		leftClickManager = new LeftClickManager(this, config, client, menuManager, lootManager, actionHandler);
 
 		// UI
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "salvaging_helper_icon.png");
@@ -230,6 +237,8 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 
 		// Main logic
+		leftClickManager.buildFacilityIgnoreList();
+		leftClickManager.buildNPCIgnoreList();
 		directions = actionHandler.determineState(this, client);
 	}
 
@@ -499,7 +508,34 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onMenuOpened(MenuOpened event) {
-		//debugLog(Arrays.asList(event.toString(), event.getFirstEntry().toString(), String.valueOf(event.getFirstEntry().isDeprioritized())), this);
+/*		for (MenuEntry e : event.getMenuEntries()) {
+			sendChatMessage("New menu entry: "+e.toString(), false);
+			if (e.getWidget()!=null && e.getWidget().getId()==9764864) { // inventory
+				sendChatMessage("Widget: "+e.getWidget().getName()+" ("+e.getWidget().getId()+")", true);
+			}
+		}
+		sendChatMessage(event.toString(), true);
+		boolean modified = false;
+		MenuEntry[] entries = event.getMenuEntries();
+		int len = entries.length;
+		MenuEntry[] newMenu = new MenuEntry[len];
+		for (int i=0; i<len; i++) {
+			if (entries[i].getOption().equals("Set") && entries[i].getIdentifier()==59549) {
+				newMenu[i] = entries[i].setDeprioritized(true);
+				modified = true;
+				sendChatMessage("Deprioritized 1: 'set sail'", true);
+			} else {
+				newMenu[i] = entries[i];
+			}
+		}
+		if (modified) { event.setMenuEntries(newMenu); }*/
+	}
+
+	@Subscribe
+	private void onClientTick(ClientTick tick) {
+		if (onBoat && !client.isMenuOpen() && client.getGameState()==GameState.LOGGED_IN) {
+			leftClickManager.process(client.getMenu());
+		}
 	}
 
 	@Subscribe
@@ -520,14 +556,13 @@ public class SalvagingHelperPlugin extends Plugin
 	// TODO - parse status of item containers
 	@Subscribe
 	private void onChatMessage(final ChatMessage event) {
-		if (event.getMessage().contains("Your crewmate on the salvaging hook cannot salvage as the cargo hold is full.")
+		String m = event.getMessage();
+		if (m.contains("Your crewmate on the salvaging hook cannot salvage as the cargo hold is full.")
 				) {
 			actionHandler.cargoHoldFull = true;
 		}
-		if (event.getMessage().contains("have enough space for the herbs.") // apostrophe?
+		if (m.contains("have enough space for the herbs.") // apostrophe?
 		) {
-			//sendChatMessage("Sender: "+event.getSender(), false);
-			//actionHandler.cargoHoldFull = true;
 			actionHandler.isHerbSackFull = true;
 		}
 

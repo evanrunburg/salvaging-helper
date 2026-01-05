@@ -3,6 +3,7 @@ package com.salvaginghelper;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import net.runelite.api.Client;
+import net.runelite.api.GameObject;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
@@ -166,10 +167,34 @@ public class SalvagingHelperPanel extends PluginPanel {
             plugin.sendIdleNotification(); });
         debugContainer.add(idleNotifyButton);
 
-        JButton dumpLogicButton = new JButton("Reveal logic engine vars");
+        JButton dumpLogicButton = new JButton("Dump logic engine vars");
         dumpLogicButton.addActionListener(e -> {
             plugin.actionHandler.dumpActionHandlerVars(); });
         debugContainer.add(dumpLogicButton);
+
+        JButton rebuildShipwreckButton = new JButton("Rebuild list of local shipwrecks");
+        rebuildShipwreckButton.addActionListener(e -> {
+            ActionHandler ah = plugin.actionHandler;
+            for (GameObject wreck : ah.inactiveShipwrecks) {
+                ah.inactiveShipwrecks.remove(wreck);
+                ah.objectHighlightMap.remove(wreck);
+            }
+            for (GameObject wreck : ah.activeShipwrecks) {
+                ah.activeShipwrecks.remove(wreck);
+                ah.objectHighlightMap.remove(wreck);
+            }
+            ah.collectShipwrecks(client, true); });
+        debugContainer.add(rebuildShipwreckButton);
+
+        JButton dumpObjMapButton = new JButton("Dump object left click map");
+        dumpObjMapButton.addActionListener(e -> {
+            plugin.sendChatMessage(plugin.leftClickManager.deprioObjMap.toString(), true); });
+        debugContainer.add(dumpObjMapButton);
+
+        JButton dumpNPCMapButton = new JButton("Dump npc left click map");
+        dumpNPCMapButton.addActionListener(e -> {
+            plugin.sendChatMessage(plugin.leftClickManager.deprioNPCMap.toString(), true); });
+        debugContainer.add(dumpNPCMapButton);
 
         return debugContainer;
     }

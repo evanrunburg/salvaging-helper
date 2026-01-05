@@ -181,6 +181,7 @@ public class ActionHandler {
         }
         if (cargoHoldFull) {
             highlight(boat.getCargoHold(), Color.RED);
+            // TODO - fire idle notification?
         }
 
         // Needs to move to new spot?
@@ -390,6 +391,7 @@ public class ActionHandler {
                     //objectHighlightMap.put(obj, new Color(153, 204, 0));
                     if (isOurs(obj)) {
                         objectHighlightMap.put(obj, clear);
+                        boat.addHelm(obj);
                     }
                     return;
                 case "13": // sails

@@ -72,7 +72,11 @@ public class Boat {
     @Getter @Setter
     private GameObject helm;
     @Getter
+    private int helmId;
+    @Getter
     private GameObject sails;
+    @Getter
+    private int sailsId;
     //endregion
 
 
@@ -199,6 +203,12 @@ public class Boat {
 
     public void addSails(GameObject newSails) {
         sails = newSails;
+        sailsId = newSails.getId();
+    }
+
+    public void addHelm(GameObject newHelm) {
+        helm = newHelm;
+        helmId = newHelm.getId();
     }
 
     public ArrayList<GameObject> allHooks() {
