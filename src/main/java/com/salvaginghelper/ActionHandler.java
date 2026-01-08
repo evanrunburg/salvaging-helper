@@ -14,12 +14,11 @@ import java.util.stream.Stream;
 
 import com.salvaginghelper.Crewmate.Activity;
 import com.salvaginghelper.LootManager.LootOption;
-import net.runelite.client.callback.ClientThread;
-
-import javax.inject.Inject;
 
 public class ActionHandler {
 
+
+    //region Enum - Instruction
     public enum Instruction {
         SAIL_TO_SHIPWRECK,
         GET_BOAT_MOVING,
@@ -32,6 +31,7 @@ public class ActionHandler {
         REBOOST,
         JUST_CHILLING
     }
+    //endregion
 
 
     //region Variable declarations
@@ -106,7 +106,7 @@ public class ActionHandler {
     @Setter
     private ItemContainer cargoHold;
     private ArrayList<Item> cargoContainerItems = new ArrayList<>();
-    private int cargoHoldCapacity = 0;
+    private int cargoHoldCapacity;
     private int cargoHoldInventoryId = 33732;
     public boolean cargoHoldNeedsUpdate = false;
     public boolean cargoHoldFull;
@@ -117,10 +117,6 @@ public class ActionHandler {
     private final Client client;
     private final LootManager lootManager;
     //endregion
-
-    @Inject
-    ClientThread clientThread;
-
 
     //region Constructor
     public ActionHandler(SalvagingHelperPlugin plugin, SalvagingHelperConfig config, Client client, LootManager lootManager,
@@ -138,7 +134,7 @@ public class ActionHandler {
     //endregion
 
 
-    //region Logic Driver (determineState)
+    //region LOGIC (determineState)
     public Instruction determineState(SalvagingHelperPlugin plugin, Client client) {
 
         Instruction newInstruction = currentInstruction;
@@ -148,15 +144,15 @@ public class ActionHandler {
             flagRebuild = false;
         }
 
+        // Set up to perform the logic all at once cleanly
         processInventoryItems();
         processCargoHold();
-
-        // Set up to perform the logic all at once cleanly
         activeHooks = countHooks("Active");
         inactiveHooks = countHooks("Inactive");
         int hookCount = activeHooks + inactiveHooks;
-        int closestActiveShipwreckDistance = closestWreckDist(client);
+        int closestActiveShipwreckDistance = closestActiveWreckDist(client);
         int closestInactiveShipwreckDistance = closestInactiveWreckDist(client);
+        //plugin.sendChatMessage("Closest inactive wreck: "+closestInactiveShipwreckDistance, true);
 
         // Always evaluate these
         // Salvaging station
@@ -204,6 +200,8 @@ public class ActionHandler {
     }
     //endregion
 
+
+    //region Processing
     public void processPlayerAnimation(AnimationChanged event, Player player, int animationId) {
         if (animationId==plugin.playerCurrentAnimation){ return; }
         Activity mappedActivity = mapAnimToActivity.get(animationId);
@@ -324,7 +322,7 @@ public class ActionHandler {
         if (obj != null) {
             switch (map.toVal(obj.getId())) {
                 case "1": // Shipwrecks (active)
-                    objectHighlightMap.put(obj, clear); // new Color(129, 255, 148);
+                    objectHighlightMap.put(obj, clear);
                     if (!activeShipwrecks.contains(obj)) { activeShipwrecks.add(obj); }
                     return;
                 case "2": // Shipwrecks (inactive)
@@ -405,6 +403,7 @@ public class ActionHandler {
             }
         }
     }
+    //endregion
 
     public boolean isOurs(GameObject object) {
         if (object.getWorldView()==plugin.getClient().getLocalPlayer().getWorldView()) {
@@ -444,15 +443,10 @@ public class ActionHandler {
         for (GameObject obj : objectHighlightMap.keySet()) {
             //plugin.debugLog(Arrays.asList(obj.getId() + "", client.getObjectDefinition(obj.getId()).getName(), obj.getLocalLocation().toString(), obj.getWorldLocation().toString(), obj.getSceneMaxLocation().toString(), obj.getSceneMinLocation().toString(), getObjectAnimation(obj) + ""), plugin);
         }
-        for (GameObject wreck : activeShipwrecks) {
-            plugin.sendChatMessage("Active: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck), false);
-        }
-        for (GameObject wreck : inactiveShipwrecks) {
-            plugin.sendChatMessage("Inactive: " + wreck.getLocalLocation().toString() + ", " + getObjectAnimation(wreck), false);
-        }
+
     }
 
-    //region Logic Helper Functions
+    //region Helper Functions
     private void processInventoryItems() {
 
 //        Item container class:
@@ -524,13 +518,13 @@ public class ActionHandler {
         else { return -1; }
     }
 
-    private int closestWreckDist(Client client) {
+    private int closestActiveWreckDist(Client client) {
         int closestActiveShipwreckDistance = 100000;
         if (activeShipwrecks.isEmpty()) {
             return -1;
         }
         for (GameObject wreck : activeShipwrecks) {
-            int dist = wreck.getLocalLocation().distanceTo(client.getLocalPlayer().getLocalLocation());
+            int dist = distanceToPlayer(wreck, boat, client);
             if (dist < closestActiveShipwreckDistance){
                 closestActiveShipwreckDistance = dist;
             }
@@ -544,7 +538,7 @@ public class ActionHandler {
             return 100000;
         }
         for (GameObject wreck : inactiveShipwrecks) {
-            int dist = wreck.getLocalLocation().distanceTo(client.getLocalPlayer().getLocalLocation());
+            int dist = distanceToPlayer(wreck, boat, client);
             if (dist < closestInactiveShipwreckDistance){
                 closestInactiveShipwreckDistance = dist;
             }
@@ -552,13 +546,22 @@ public class ActionHandler {
         return closestInactiveShipwreckDistance;
     }
 
+    private int distanceToPlayer(GameObject obj, Boat theBoat, Client theClient) {
+        if (obj == null | theBoat == null | theClient == null | theClient.getLocalPlayer() == null | theBoat.getBoatEntity() == null) {
+            return -1;
+        }
+        LocalPoint playerTranslated = theBoat.getBoatEntity().transformToMainWorld(theClient.getLocalPlayer().getLocalLocation());
+        return obj.getLocalLocation().distanceTo(playerTranslated);
+    }
+
     private void processCargoHold() {
         if (!cargoHoldNeedsUpdate) { return; }
         cargoContainerItems.clear();
         cargoContainerItems.addAll(List.of(cargoHold.getItems()));
+        cargoHoldCapacity = boat.getCargoHoldCapacity();
         cargoHoldSalvageCount = cargoContainerItems.stream().filter(x ->
                 plugin.salvageItemIds.contains(x.getId())).count();
-        cargoHoldFull = (boat.getCargoHoldCapacity() == cargoHold.count());
+        cargoHoldFull = (cargoHoldCapacity == cargoHold.count());
         cargoHoldNeedsUpdate = false;
     }
 
@@ -575,11 +578,6 @@ public class ActionHandler {
     }
 
     public void dumpActionHandlerVars() {
-
-//        clientThread.invoke(() -> {
-//                    plugin.sendChatMessage(client.getItemContainer(33732).toString(), false);
-//                });
-
         plugin.sendChatMessage("invHasSalvage: "+Boolean.toString(invHasSalvage), false);
         plugin.sendChatMessage("containsCargoHoldLoot: "+Boolean.toString(containsCargoHoldLoot), false);
         plugin.sendChatMessage("containsDroppableLoot: "+Boolean.toString(containsDroppableLoot), false);
@@ -590,7 +588,8 @@ public class ActionHandler {
         plugin.sendChatMessage("containsProcessableLoot: "+Boolean.toString(containsProcessableLoot), false);
         plugin.sendChatMessage("inactiveHooks: "+inactiveHooks, false);
         plugin.sendChatMessage("activeHooks: "+activeHooks, false);
-        plugin.sendChatMessage("closestActiveShipwreckDistance: "+closestWreckDist(client), false);
+        plugin.sendChatMessage("closestActiveShipwreckDistance: "+ closestActiveWreckDist(client), false);
+        plugin.sendChatMessage("closestInactiveShipwreckDistance: "+closestInactiveWreckDist(client), false);
         plugin.sendChatMessage("cargoHoldCapacity: "+cargoHoldCapacity, false);
         plugin.sendChatMessage("cargoHold.count(): "+cargoHold.count(), false);
 

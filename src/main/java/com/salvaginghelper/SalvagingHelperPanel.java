@@ -4,6 +4,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import net.runelite.api.Client;
 import net.runelite.api.GameObject;
+import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
@@ -153,13 +154,20 @@ public class SalvagingHelperPanel extends PluginPanel {
 
 
 
+    //region Build: Debug Panel
     public JPanel buildDebugPanel() {
         JPanel debugContainer = new JPanel();
         debugContainer.setLayout(new BoxLayout(debugContainer, BoxLayout.Y_AXIS));
 
         JButton dumpShipwrecksButton = new JButton("Dump tracked shipwrecks");
         dumpShipwrecksButton.addActionListener(e -> {
-            plugin.actionHandler.dumpGameObjects(client); });
+            for (GameObject wreck : plugin.actionHandler.activeShipwrecks) {
+                plugin.sendChatMessage("Active: " + wreck.getLocalLocation().toString() + ", " + plugin.actionHandler.getObjectAnimation(wreck), false);
+            }
+            for (GameObject wreck : plugin.actionHandler.inactiveShipwrecks) {
+                plugin.sendChatMessage("Inactive: " + wreck.getLocalLocation().toString() + ", " + plugin.actionHandler.getObjectAnimation(wreck), false);
+            }
+            });
         debugContainer.add(dumpShipwrecksButton);
 
         JButton idleNotifyButton = new JButton("Send idle notification");
@@ -169,7 +177,8 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         JButton dumpLogicButton = new JButton("Dump logic engine vars");
         dumpLogicButton.addActionListener(e -> {
-            plugin.actionHandler.dumpActionHandlerVars(); });
+            plugin.actionHandler.dumpActionHandlerVars();
+        });
         debugContainer.add(dumpLogicButton);
 
         JButton rebuildShipwreckButton = new JButton("Rebuild list of local shipwrecks");
@@ -196,8 +205,30 @@ public class SalvagingHelperPanel extends PluginPanel {
             plugin.sendChatMessage(plugin.leftClickManager.deprioNPCMap.toString(), true); });
         debugContainer.add(dumpNPCMapButton);
 
+        JButton dumpBoatInfo = new JButton("Dump boat facility info");
+        dumpBoatInfo.addActionListener(e -> {
+            Boat b = plugin.boat;
+            plugin.sendChatMessage("Helm: " + b.getHelmId() + ", ", false);
+            plugin.sendChatMessage("Cargo Hold: " + b.getCargoHoldId() + ", cat " + b.getCargoHoldType().toString() + ", cap: " + b.getCargoHoldCapacity(), false);
+            plugin.sendChatMessage("Hook (port): " + b.getHookPortId() + ", " + b.getHookPortType().toString(), false);
+            plugin.sendChatMessage("Hook (stb): " + b.getHookStarboardId() + ", " + b.getHookStarboardType().toString(), false);
+        });
+        debugContainer.add(dumpBoatInfo);
+
+        JButton dumpInvItemInfo = new JButton("Item composition info for red topaz");
+        dumpInvItemInfo.addActionListener(e -> {
+            clientThread.invoke( () -> {
+                ItemComposition itemComp = client.getItemDefinition(1629);
+                for (String action : itemComp.getInventoryActions()) {
+                    plugin.sendChatMessage(action, true);
+                }
+            });
+        });
+        debugContainer.add(dumpInvItemInfo);
+
         return debugContainer;
     }
+    //endregion
 
     //region Build: Loot Panel
     public JPanel buildLootPanel() {

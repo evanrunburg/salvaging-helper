@@ -10,6 +10,8 @@ import java.awt.*;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -73,17 +75,18 @@ public class LootManager {
 
     @RequiredArgsConstructor @Getter
     public enum LootOption { // Conditionals are Container, Consume, Equip, Process, Cargo_Hold
-        KEEP("Keep"),
-        DROP("Drop"),
-        CONTAINER("Container"),
-        ALCH("Alch"),
-        CONSUME("Consume"),
-        EQUIP("Equip"),
-        PROCESS("Process"),
-        CARGO_HOLD("Cargo Hold"), // Eligible items: https://oldschool.runescape.wiki/w/Cargo_hold
-        OTHER("Other");
+        KEEP("Keep", new ArrayList<>(Arrays.asList("Use"))),
+        DROP("Drop", new ArrayList<>(Arrays.asList("Drop", "Destroy"))),
+        CONTAINER("Container", new ArrayList<>(Arrays.asList("Use"))),
+        ALCH("Alch", new ArrayList<>(Arrays.asList("Use"))),
+        CONSUME("Consume", new ArrayList<>(Arrays.asList("Use", "Drink", "Apply"))),
+        EQUIP("Equip", new ArrayList<>(Arrays.asList("Equip", "Wear", "Wield"))),
+        PROCESS("Process", new ArrayList<>(Arrays.asList("Use"))),
+        CARGO_HOLD("Cargo Hold", new ArrayList<>(Arrays.asList("Use"))), // Eligible items: https://oldschool.runescape.wiki/w/Cargo_hold
+        OTHER("Other", new ArrayList<>(Arrays.asList("Use")));
 
         private final String name;
+        private final ArrayList<String> menuOptionWhitelist;
 
         @Override
         public String toString() { return name; }

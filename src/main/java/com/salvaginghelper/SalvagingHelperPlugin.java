@@ -33,6 +33,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 @Slf4j
@@ -66,7 +67,7 @@ public class SalvagingHelperPlugin extends Plugin
 	public ArrayList<NPC> enemyCrewmates = new ArrayList<>();
 
 	// Status variables about one's current voyage
-	List<Crewmate> activeCrewmates = new ArrayList<>(5);
+	CopyOnWriteArrayList<Crewmate> activeCrewmates = new CopyOnWriteArrayList<>();
 	Map<Integer, Crewmate> toCrewmate = new HashMap<>();
 	public boolean onBoat = false;
 	private int[] boatHotspots = new int[11];
@@ -134,6 +135,9 @@ public class SalvagingHelperPlugin extends Plugin
 	protected void startUp() throws Exception {
 		debug = config.debugModeEnabled();
 		boat.setActionHandler(actionHandler);
+		clientThread.invokeLater( () -> {
+			onBoat = client.getVarbitValue(19136) > 0;
+		});
 
 		// Mappings
 		ObjectTable = new LookupTable("src/main/resources/sailingobjects.properties");
@@ -508,33 +512,22 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onMenuOpened(MenuOpened event) {
-/*		for (MenuEntry e : event.getMenuEntries()) {
-			sendChatMessage("New menu entry: "+e.toString(), false);
-			if (e.getWidget()!=null && e.getWidget().getId()==9764864) { // inventory
-				sendChatMessage("Widget: "+e.getWidget().getName()+" ("+e.getWidget().getId()+")", true);
-			}
-		}
-		sendChatMessage(event.toString(), true);
-		boolean modified = false;
-		MenuEntry[] entries = event.getMenuEntries();
-		int len = entries.length;
-		MenuEntry[] newMenu = new MenuEntry[len];
-		for (int i=0; i<len; i++) {
-			if (entries[i].getOption().equals("Set") && entries[i].getIdentifier()==59549) {
-				newMenu[i] = entries[i].setDeprioritized(true);
-				modified = true;
-				sendChatMessage("Deprioritized 1: 'set sail'", true);
-			} else {
-				newMenu[i] = entries[i];
-			}
-		}
-		if (modified) { event.setMenuEntries(newMenu); }*/
+		//for (MenuEntry e : event.getMenuEntries()) {
+			//leftClickManager.processOneEntry(e);
+			//sendChatMessage(e.toString(), false);
+		//}
+	}
+
+	@Subscribe
+	private void onMenuOptionClicked(MenuOptionClicked event) {
+		//sendChatMessage(event.toString(), false);
 	}
 
 	@Subscribe
 	private void onClientTick(ClientTick tick) {
 		if (onBoat && !client.isMenuOpen() && client.getGameState()==GameState.LOGGED_IN) {
 			leftClickManager.process(client.getMenu());
+			//sendChatMessage(client.getMenu().toString(), true);
 		}
 	}
 
@@ -542,11 +535,18 @@ public class SalvagingHelperPlugin extends Plugin
 	private void onPostAnimation(PostAnimation event) {
 		if (shipwreckRespawnAnimIds.contains(event.getAnimation().getId())) {
 			actionHandler.collectShipwrecks(client, false);
+		} else if (event.getAnimation().getId()==13625) {
+			// Merchant shipwrecks that despawn sometimes enter a strange state where they report a random
+			// Fremmenik animation id, so use that as a cue to rebuild our array and hopefully cull that error.
+			// TODO: figure out the source of this phenomenon, so we can remove this stopgap fix.
+			actionHandler.rebuild(this, client);
 		}
+
 	}
 
 	@Subscribe
 	private void onWorldEntitySpawned(WorldEntitySpawned event) {
+		if (!onBoat) { return; }
 		WorldEntity entity = event.getWorldEntity();
 		if (entity.getOwnerType()==WorldEntity.OWNER_TYPE_SELF_PLAYER) {
 			boat.setBoatEntity(entity);
@@ -561,7 +561,7 @@ public class SalvagingHelperPlugin extends Plugin
 				) {
 			actionHandler.cargoHoldFull = true;
 		}
-		if (m.contains("have enough space for the herbs.") // apostrophe?
+		if (m.contains("have enough space for the herbs.")
 		) {
 			actionHandler.isHerbSackFull = true;
 		}

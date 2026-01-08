@@ -31,7 +31,9 @@ public class Boat {
     //region Cargo Hold
     @Getter
     private GameObject cargoHold;
+    @Getter
     private HoldType cargoHoldType;
+    @Getter
     private int cargoHoldId = -1;
     @Getter
     private int cargoHoldCapacity = 0;
@@ -69,7 +71,7 @@ public class Boat {
     private GameObject salvagingStation;
     @Getter
     private GameObject[] kegs;
-    @Getter @Setter
+    @Getter
     private GameObject helm;
     @Getter
     private int helmId;

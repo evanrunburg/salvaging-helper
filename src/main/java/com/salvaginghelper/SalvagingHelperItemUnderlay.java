@@ -8,6 +8,8 @@ import net.runelite.client.ui.overlay.WidgetItemOverlay;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
@@ -23,7 +25,12 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
         this.plugin = plugin;
         this.config = config;
 
-        showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE);
+        if (config.overlayOnCargoHold()) {
+            showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE,
+                    InterfaceID.SAILING_BOAT_CARGOHOLD);
+        } else {
+            showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE);
+        }
     }
 
     @Override
@@ -39,7 +46,6 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
         } else {
             // While cargo hold is open, only render depositable items
             if (widgetItem.getWidget().getId()!=61865985 | color.equals(config.cargoHoldColor()) ) {
-                //plugin.sendChatMessage("Widget item ID: "+widgetItem.getId()+", widget ID: "+widgetItem.getWidget().getId()+", name"+widgetItem.getWidget().getName(), true);
                 Rectangle bounds = widgetItem.getCanvasBounds();
                 final BufferedImage outline = itemManager.getItemOutline(itemId, widgetItem.getQuantity(), color);
                 graphics.drawImage(outline, (int) bounds.getX(), (int) bounds.getY(), null);

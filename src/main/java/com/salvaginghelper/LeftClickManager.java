@@ -1,16 +1,14 @@
 package com.salvaginghelper;
 
-import net.runelite.api.Client;
-import net.runelite.api.Menu;
-import net.runelite.api.MenuEntry;
-import net.runelite.api.events.MenuOpened;
+import net.runelite.api.*;
+import net.runelite.api.gameval.NpcID;
 import net.runelite.client.menus.MenuManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.salvaginghelper.LootManager.LootOption;
 
 public class LeftClickManager {
 
@@ -21,11 +19,18 @@ public class LeftClickManager {
     private final LootManager lootManager;
     private final ActionHandler actionHandler;
 
-    private final ArrayList<String> annoyingMenuOptions = new ArrayList<>(Arrays.asList("Set", "Check", "Empty",
+    private final int SWAP_DROP = 1;
+    private final int SWAP_USE = 2;
+
+    private final ArrayList<String> boatOptionsToDeprio = new ArrayList<>(Arrays.asList("Set", "Check", "Empty",
             "Operate", "Check-ammunition", "Reset-ammunition", "Un-set", "Navigate", "Escape"));
+    private final ArrayList<String> itemMenuOptionBlacklist = new ArrayList<>(Arrays.asList("Drink", "Wear", "Clean",
+            "Apply", "Equip", "Inspect"));
 
     public ConcurrentHashMap<Integer, Boolean> deprioNPCMap = new ConcurrentHashMap<>();
     public ConcurrentHashMap<Integer, Boolean> deprioObjMap = new ConcurrentHashMap<>();
+
+    public ArrayList<Integer> npcsInTheWay = new ArrayList<>();
 
     public LeftClickManager(SalvagingHelperPlugin plugin, SalvagingHelperConfig config, Client client,
                             MenuManager menuManager, LootManager lootManager, ActionHandler actionHandler) {
@@ -35,67 +40,140 @@ public class LeftClickManager {
         this.menuManager = menuManager;
         this.lootManager = lootManager;
         this.actionHandler = actionHandler;
+
+        buildNPCsInTheWayList();
     }
 
     public void process(Menu m) {
-        ArrayList<MenuEntry> entries = new ArrayList<>();
-        entries.addAll(List.of(m.getMenuEntries()));
 
-        for (MenuEntry e : m.getMenuEntries()) {
-            processOneEntry(e);
+        MenuEntry[] menuEntries = m.getMenuEntries();
+        int needSwap = 0;
+        int dropIndex = -1;
+        for (int i=0; i<menuEntries.length; i++) {
+            int k = processOneEntry(menuEntries[i]);
+            //plugin.sendChatMessage("PROCESS ONE ENTRY", false);
+            if (k == SWAP_DROP) {
+                //plugin.sendChatMessage("SWAP DROP 1", false);
+                dropIndex = i;
+                needSwap = SWAP_DROP;
+            }
+            else if (k == SWAP_USE) {
+                needSwap = SWAP_USE;
+                //plugin.sendChatMessage("SWAP USE 2", false);
+
+            }
         }
 
-        // at the end, add shift click configure
+        if (needSwap == SWAP_DROP) {
+            MenuEntry[] newMenu = swapEntryToTop(menuEntries, dropIndex);
+            m.setMenuEntries(newMenu);
+            return;
+        } else if (needSwap == SWAP_USE) {
+            //plugin.sendChatMessage("SWAP USE", false);
+            int useIndex = getMenuOptionIndex(menuEntries, "Use");
+            if (useIndex > 0) {
+                MenuEntry[] newMenu = swapEntryToTop(menuEntries, useIndex);
+                m.setMenuEntries(newMenu);
+            }
+        }
+
+        // TODO - shift click configure
     }
 
-    public void processOneEntry(MenuEntry e) {
-        // Just want to deprioritize options we don't like
+    public int processOneEntry(MenuEntry e) {
         String opt = e.getOption();
         int idf = e.getIdentifier();
-        if (annoyingMenuOptions.contains(opt) ) {
+        //plugin.sendChatMessage("Start - opt: "+opt, false);
+
+        // GameObjects
+        if (boatOptionsToDeprio.contains(opt) ) {
             if (idf>0) {
                 if (deprioObjMap.containsKey(idf) && deprioObjMap.get(idf)==true) {
                     e.setDeprioritized(true);
                 }
             }
-            // Shipwrecks
-        } else if (idf==60478 && opt.equals("Inspect")) {
+        }
+
+        // Shipwrecks
+        else if (opt.equals("Inspect") && plugin.activeShipwreckIds.contains(idf)) {
             e.setDeprioritized(true);
+
+        // Crewmates
         } else if (opt.equals("Command")) {
-            //plugin.sendChatMessage("Hit command line", true);
-            //plugin.sendChatMessage(e.toString(), true);
-            //plugin.sendChatMessage("Contains idf key: "+ Boolean.toString(deprioNPCMap.containsKey(idf)), true);
-            //plugin.sendChatMessage("Maps to true: "+ Boolean.toString(deprioNPCMap.get(idf)), true);
             if (e.getNpc()!=null) {
                 int npcId = e.getNpc().getId();
                 if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId)) {
                     e.setDeprioritized(true);
-                    //plugin.sendChatMessage("Deprio'd", true);
                 }
             }
-
         }
+
+        // Inventory items
+        else if (e.getItemId()>0 && e.getParam1()==9764864) {
+            //plugin.sendChatMessage("hit", false);
+            int id = e.getItemId();
+            //plugin.sendChatMessage("1", false);
+            // TODO - modify to allow containers to be handled
+            if (lootManager.getLootItem(id)==null) {
+                return 0;
+            }
+            // Don't touch what isn't ours
+            if (e.getType()==MenuAction.RUNELITE) {
+                return 0;
+            }
+
+            //plugin.sendChatMessage("2", false);
+            LootOption defaultLeftClick = lootManager.getLootItem(id).getLootCategory();
+
+            if (defaultLeftClick.getMenuOptionWhitelist().contains(opt) && defaultLeftClick==LootOption.DROP) {
+                // Drop option's default menu action type causes it to be auto-deprioritized, so swap it out
+                e.setType(MenuAction.CC_OP);
+                e.setDeprioritized(false);
+                //plugin.sendChatMessage("3", false);
+                return SWAP_DROP;
+            }
+
+            // Deprioritize all high-priority left click options that aren't the one we want
+            if (itemMenuOptionBlacklist.contains(opt) && !defaultLeftClick.getMenuOptionWhitelist().contains(opt)
+                    && defaultLeftClick != LootOption.DROP) {
+                e.setDeprioritized(true);
+                e.setType(MenuAction.CC_OP_LOW_PRIORITY);
+                return SWAP_USE;
+            }
+        }
+        return 0;
     }
 
-    private void processObjectMenu() {
-        return;
+    private MenuEntry[] swapEntryToTop(MenuEntry[] menuEntries, int indexToSwap) {
+        // "Cancel" and "Examine" will always be menu entries; will use?
+        if (indexToSwap == menuEntries.length - 1 || menuEntries.length < 3) { return null; }
+
+        MenuEntry[] tempArray = new MenuEntry[menuEntries.length];
+        for (int j=0; j<menuEntries.length; j++) {
+            if (j==menuEntries.length - 1) {
+                tempArray[j] = menuEntries[indexToSwap];
+            }
+            else if (j==indexToSwap) {
+                tempArray[j] = menuEntries[menuEntries.length - 1];
+            }
+            else {
+                tempArray[j] = menuEntries[j];
+            }
+        }
+        return tempArray;
     }
 
-    private void processInvItemMenu() {
-        return;
+    public int getMenuOptionIndex(MenuEntry[] menuEntries, String option) {
+        for (int i=0; i<menuEntries.length; i++) {
+            if (menuEntries[i].getOption().equals(option)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
-    private void processGroundItemMenu() {
-        return;
-    }
+    public void deprio(GameObject obj) {
 
-    private void processNPCMenu() {
-        return;
-    }
-
-    public Menu prioritizeDrop(Menu m) {
-
-        return m;
     }
 
     public void buildFacilityIgnoreList() {
@@ -116,10 +194,20 @@ public class LeftClickManager {
     }
 
     public void buildNPCIgnoreList() {
-        for (Crewmate mate : plugin.activeCrewmates) {
-            deprioNPCMap.put(mate.getNpcId(), true);
+        if (!plugin.activeCrewmates.isEmpty()) {
+            for (Crewmate mate : plugin.activeCrewmates) {
+                if (mate != null) {
+                    deprioNPCMap.put(mate.getNpcId(), true);
+                }
+            }
         }
     }
 
+    public void buildNPCsInTheWayList() {
+        // Some NPCs
+        npcsInTheWay.add(
+                NpcID.SAILING_CHARTING_MERMAID_GUIDE_3 //  Selina-Kebbit Monkfish (15157) - Merchant Shipwrecks sw of Brittle
+        );
+    }
 
 }

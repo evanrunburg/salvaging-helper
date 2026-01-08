@@ -39,13 +39,25 @@ public interface SalvagingHelperConfig extends Config
 	String lootSection = "lootSection";
 
 	@ConfigItem(
-			position = 0,
+			position = -10,
 			keyName = "enableLootOverlays",
 			name = "Enable loot overlays",
 			description = "Draw overlays on inventory items depending on their loot category.",
 			section = lootSection
 	)
 	default boolean enableLootOverlays()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			position = -5,
+			keyName = "overlayOnCargoHold",
+			name = "Overlay in cargo hold",
+			description = "Draw overlays on items that are in the cargo hold.",
+			section = lootSection
+	)
+	default boolean overlayOnCargoHold()
 	{
 		return true;
 	}
