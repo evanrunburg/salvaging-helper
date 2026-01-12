@@ -5,6 +5,8 @@ import net.runelite.client.config.*;
 import javax.swing.*;
 import java.awt.*;
 
+import com.salvaginghelper.ActionHandler.SalvageMode;
+
 @ConfigGroup(SalvagingHelperConfig.GROUP)
 public interface SalvagingHelperConfig extends Config
 {
@@ -37,18 +39,6 @@ public interface SalvagingHelperConfig extends Config
 			description = "Configure how inventory items are highlighted",
 			position = 2)
 	String lootSection = "lootSection";
-
-	@ConfigItem(
-			position = -10,
-			keyName = "enableLootOverlays",
-			name = "Enable loot overlays",
-			description = "Draw overlays on inventory items depending on their loot category.",
-			section = lootSection
-	)
-	default boolean enableLootOverlays()
-	{
-		return true;
-	}
 
 	@ConfigItem(
 			position = -5,
@@ -218,18 +208,6 @@ public interface SalvagingHelperConfig extends Config
 	String idleAlertsSection = "idleAlertsSection";
 
 	@ConfigItem(
-			position = 1,
-			keyName = "idleAlerts",
-			name = "Enabled",
-			description = "Whether to alert the user when idle.",
-			section = idleAlertsSection
-	)
-	default boolean idleAlertsEnabled()
-	{
-		return true;
-	}
-
-	@ConfigItem(
 			position = 2,
 			keyName = "idleScreenFlashType",
 			name = "Flash",
@@ -309,17 +287,7 @@ public interface SalvagingHelperConfig extends Config
 			position = 4)
 	String extractorAlertsSection = "extractorAlertsSection";
 
-	@ConfigItem(
-			position = 1,
-			keyName = "extractorAlerts",
-			name = "Enabled",
-			description = "Whether to alert the user when extractor is ready to be harvested.",
-			section = extractorAlertsSection
-	)
-	default boolean extractorAlertsEnabled()
-	{
-		return true;
-	}
+
 
 	@ConfigItem(
 			position = 2,
@@ -473,6 +441,284 @@ public interface SalvagingHelperConfig extends Config
 			hidden = true
 	)
 	void setActiveTab(JPanel t);
+    //endregion
+
+	//region Loot Containers Enabled
+	@ConfigItem(
+			keyName = "logBasketEnabled",
+			name = "Log Basket Enabled",
+			description = "Whether to use the log basket while salvaging.",
+			hidden = true
+	)
+	default boolean logBasketEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "plankSackEnabled",
+			name = "Plank Sack Enabled",
+			description = "Whether to use the plank sack while salvaging.",
+			hidden = true
+	)
+	default boolean plankSackEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "gemBagEnabled",
+			name = "Gem Bag Enabled",
+			description = "Whether to use the gem bag while salvaging.",
+			hidden = true
+	)
+	default boolean gemBagEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "herbSackEnabled",
+			name = "Herb Sack Enabled",
+			description = "Whether to use the herb sack while salvaging.",
+			hidden = true
+	)
+	default boolean herbSackEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "fishBarrelEnabled",
+			name = "Fish Barrel Enabled",
+			description = "Whether to use the fish barrel while salvaging.",
+			hidden = true
+	)
+	default boolean fishBarrelEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "soulbearerEnabled",
+			name = "Soulbearer Enabled",
+			description = "Whether to use the soulbearer while salvaging.",
+			hidden = true
+	)
+	default boolean soulbearerEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "runePouchEnabled",
+			name = "Rune Pouch Enabled",
+			description = "Whether to use the rune pouch while salvaging.",
+			hidden = true
+	)
+	default boolean runePouchEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "seedBoxEnabled",
+			name = "Seed Box Enabled",
+			description = "Whether to use the seed box while salvaging.",
+			hidden = true
+	)
+	default boolean seedBoxEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "coalBagEnabled",
+			name = "Coal Bag Enabled",
+			description = "Whether to use the coal bag while salvaging.",
+			hidden = true
+	)
+	default boolean coalBagEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "tackleBoxEnabled",
+			name = "Tackle Box Enabled",
+			description = "Whether to use the tackle box while salvaging.",
+			hidden = true
+	)
+	default boolean tackleBoxEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "huntsmanKitEnabled",
+			name = "Huntsman's Kit Enabled",
+			description = "Whether to use the huntsman's kit while salvaging.",
+			hidden = true
+	)
+	default boolean huntsmanKitEnabled() { return false; }
+
+	@ConfigItem(
+			keyName = "reagentPouchEnabled",
+			name = "Reagent Pouch Enabled",
+			description = "Whether to use the reagent pouch while salvaging.",
+			hidden = true
+	)
+	default boolean reagentPouchEnabled() { return false; }
+	//endregion
+
+    //region Panel Settings - Salvage Style
+
+	@ConfigItem(
+			keyName = "salvageMode",
+			name = "Salvage mode",
+			description = "What strategy to employ while salvaging.",
+			hidden = true
+	)
+	default SalvageMode salvageMode() { return SalvageMode.SALVAGE_AND_SORT; }
+
+	@ConfigItem(
+			keyName = "dropAllSalvage",
+			name = "Drop all salvage",
+			description = "Drop all salvage instead of sorting it at a salvaging station.",
+			hidden = true
+	)
+	default boolean dropAllSalvage() { return false; }
+
+	@ConfigItem(
+			keyName = "minMaxHookUptime",
+			name = "Fill empty hook while sorting",
+			description = "Prompt you to assign a crewmate to an idle hook while you're temporarily sorting.",
+			hidden = true
+	)
+	default boolean minMaxHookUptime() { return false; }
+
+	@ConfigItem(
+			keyName = "cargoBeforeSort",
+			name = "Fill cargo hold before sorting?",
+			description = "Completely fill the cargo hold before sorting all your loot in one fell swoop.",
+			hidden = true
+	)
+	default boolean cargoBeforeSort() { return false; }
+
+	@ConfigItem(
+			keyName = "dockOnFull",
+			name = "[TODO] Dock when cargo hold full",
+			description = "Navigate to dock when cargo hold and inventory are full. Select if you want to bank salvage " +
+					"or don't have a salvaging station on your boat yet.",
+			hidden = true
+	)
+	default boolean dockOnFull() { return false; }
+
+    //endregion
+
+	//region Panel Settings - General
+	@ConfigItem(
+			keyName = "drawShipwreckRadius",
+			name = "Draw shipwreck salvage radius",
+			description = "Draw a circle around a shipwreck to indicate the effective range a hook can loot it from.",
+			hidden = true
+	)
+	default boolean drawShipwreckRadius() { return true; }
+
+	@ConfigItem(
+			keyName = "drawHookLocation",
+			name = "Draw salvaging hook marker",
+			description = "Draw a circle underneath boat's salvaging hooks to indicate its 'true tile' for salvaging calculations.",
+			hidden = true
+	)
+	default boolean drawHookLocation() { return true; }
+
+	@ConfigItem(
+			keyName = "enableLootOverlays",
+			name = "Enable loot overlays",
+			description = "Draw overlays on inventory items based on their loot category.",
+			hidden = true
+	)
+	default boolean enableLootOverlays()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "swapInvItemOptions",
+			name = "Override item left-click options",
+			description = "Replace inventory items' left-click options with options tailored to that item and its loot " +
+					"category. Note: this will NOT affect your MenuEntrySwapper settings, and will occur only while salvaging.",
+			hidden = true
+	)
+	default boolean swapInvItemOptions() { return true; }
+
+	@ConfigItem(
+			keyName = "idleAlerts",
+			name = "Enable idle alerts",
+			description = "Alert user when idle - for example, when you need to move your boat to an active shipwreck. " +
+					"Customize those alerts in this plugin's Runelite configuration panel (wrench in sidebar).",
+			hidden = true
+	)
+	default boolean idleAlertsEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "extractorAlerts",
+			name = "Enable extractor alerts",
+			description = "Alert when your extractor is ready to be harvested. Customize those alerts in this plugin's " +
+					"Runelite configuration panel (wrench in sidebar).",
+			hidden = true
+	)
+	default boolean extractorAlertsEnabled()
+	{
+		return true;
+	}
+	//endregion
+
+	//region Panel Settings - Left Click Overrides
+
+	@ConfigItem(
+			keyName = "hideGroundItems",
+			name = "Hide ground item left-clicks",
+			description = "Prevent left-click from causing you to pick up an item on the ground while you're on your boat.",
+			hidden = true
+	)
+	default boolean hideGroundItems() { return true; }
+
+	@ConfigItem(
+			keyName = "hideCrewmateLeftClick",
+			name = "Hide crewmate left-clicks",
+			description = "Deprioritize crewmates' left-click 'Command' option unless they're currently needed for " +
+					"our salvaging process. This will ONLY affect left clicks while near shipwrecks.",
+			hidden = true
+	)
+	default boolean hideCrewmateLeftClick() { return true; }
+
+	@ConfigItem(
+			keyName = "hideFacilityLeftClick",
+			name = "Hide facility left-clicks",
+			description = "Deprioritize non-salvaging facilities' left-click options (e.g. 'Set sails', 'Operate cannon') " +
+					"unless relevant to our salvaging process. This will ONLY affect left clicks while near shipwrecks.",
+			hidden = true
+	)
+	default boolean hideFacilityLeftClick() { return true; }
+
+	@ConfigItem(
+			keyName = "hideShipwreckInspect",
+			name = "Hide shipwreck left-clicks",
+			description = "Deprioritize active shipwrecks' left-click Inspect option. This prevents you from accidentally " +
+					"clicking the shipwreck while trying to click a hook or cargo hold.",
+			hidden = true
+	)
+	default boolean hideShipwreckInspect() { return true; }
+
+	@ConfigItem(
+			keyName = "hideNpcInteract",
+			name = "Hide misc NPC left-clicks",
+			description = "Deprioritize left-click options of NPCs in obnoxious spots - particularly the Kebbit-Monkfishes" +
+					" - to prevent accidentally clicking them while salvaging. This will ONLY affect left clicks at " +
+					"shipwrecks.",
+			hidden = true
+	)
+	default boolean hideNpcInteract() { return true; }
+
+	@ConfigItem(
+			keyName = "hideCrewmateOverhead",
+			name = "Hide crewmate overhead chats",
+			description = "Suppress all overhead text generated by your crewmates on your ship.",
+			hidden = true
+	)
+	default boolean hideCrewmateOverhead() { return false; }
+
+	@ConfigItem(
+			keyName = "hideOthersCrewmateOverhead",
+			name = "Hide others' overhead chats",
+			description = "Suppress all overhead text generated by other players' crewmates.",
+			hidden = true
+	)
+	default boolean hideOthersCrewmateOverhead() { return true; }
+
+	@ConfigItem(
+			keyName = "drawCargoContents",
+			name = "Overlay cargo contents",
+			description = "Track the number of items currently in the cargo hold and overlay that number on its model.",
+			hidden = true
+	)
+	default boolean drawCargoContents() { return true; }
+
     //endregion
 
 

@@ -2,10 +2,13 @@ package com.salvaginghelper;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import net.runelite.api.Client;
-import net.runelite.api.GameObject;
-import net.runelite.api.ItemComposition;
+import lombok.Getter;
+import lombok.Setter;
+import net.runelite.api.*;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.ConfigDescriptor;
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigItemDescriptor;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ClientToolbar;
@@ -20,7 +23,6 @@ import net.runelite.client.util.ImageUtil;
 import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.Border;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import java.awt.*;
@@ -28,11 +30,11 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.salvaginghelper.LootManager.SalvageType;
 import com.salvaginghelper.LootManager.LootOption;
-import com.salvaginghelper.LootItem;
-
+import com.salvaginghelper.ActionHandler.SalvageMode;
 
 
 public class SalvagingHelperPanel extends PluginPanel {
@@ -46,16 +48,29 @@ public class SalvagingHelperPanel extends PluginPanel {
     public HashMap<SalvageType, JPanel> salvageLootItemsMap = new HashMap<>();
     public HashMap<JPanel, SalvageType> toSalvageCategory = new HashMap<>();
     public Multimap<Integer, JComboBox<LootOption>> itemToComboBox = ArrayListMultimap.create();
+    public HashMap <JButton, LootContainer> toLootContainer = new HashMap<>();
+    public HashMap <LootContainer, JButton> toContainerButton = new HashMap<>();
+    private ConcurrentHashMap<String, JCheckBox> configToCheckboxMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<JCheckBox, String> checkboxToConfigMap = new ConcurrentHashMap<>();
+
+    @Getter
+    private JComboBox<SalvageMode> salvageModeComboBox;
 
     // https://fonts.google.com/icons (Apache 2.0)
     private final ImageIcon ICON_DROPDOWN_UNCLICKED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_down_20px.png"));
+    private final ImageIcon ICON_DROPDOWN_UNCLICKED_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_down_20px_gray.png"));
     private final ImageIcon ICON_DROPDOWN_CLICKED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_up_20px.png"));
+    private final ImageIcon ICON_DROPDOWN_CLICKED_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_up_20px_gray.png"));
     private final ImageIcon ICON_EXPAND_ALL = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_20px.png"));
     private final ImageIcon ICON_COLLAPSE_ALL = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_collapse_20px.png"));
     private final ImageIcon ICON_RESET = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_restart_20px.png"));
     private final ImageIcon ICON_IMPORT = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_download_20px.png"));
     private final ImageIcon ICON_EXPORT = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_upload_20px.png"));
-
+    private final ImageIcon ICON_PLUGIN = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_settings_ethernet_20px.png"));
+    private final ImageIcon ICON_HOOK = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_phishing_20px.png"));
+    private final ImageIcon ICON_SWAP = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_swap_horiz_20px.png"));
+    private final ImageIcon ICON_BUG = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_bug_report_20px.png"));
+    private final ImageIcon ICON_STRATEGY = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_flowchart_20px.png"));
 
     private final int SIDEBAR_WIDTH = 249;
     private final int SIDEBAR_INCLUDING_SCROLL = 230;
@@ -69,24 +84,30 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final int ITEM_PANEL_PADDING = 2;
 
     private final Color SALVAGE_PANEL_COLOR = new Color(46, 46, 46);
+    private final Color CONTAINER_BUTTON_ENABLED = new Color(0, 179, 0);
+
+    private final static Border doubleBorder = BorderFactory.createCompoundBorder(
+            new LineBorder(ColorScheme.DARKER_GRAY_COLOR, 1),
+            new EmptyBorder(2, 2, 2, 2));
+
 
     @Inject
-    private ItemManager itemManager;
+    private final ItemManager itemManager;
 
     //@Inject
-    private ConfigManager configManager;
+    private final ConfigManager configManager;
 
     @Inject
     private Client client;
 
     @Inject
-    private LootManager lootManager;
+    private final LootManager lootManager;
 
     //@Inject
-    private ClientThread clientThread;
+    private final ClientThread clientThread;
 
-    @Inject
-    private ClientToolbar clientToolbar;
+    //@Inject
+    //private ClientToolbar clientToolbar;
 
     //endregion
 
@@ -113,7 +134,7 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         JPanel tabGroupPanel = new JPanel();
         JPanel displayPanel = new JPanel();
-        JPanel generalTabPanel = new JPanel();
+        JPanel generalTabPanel = buildGeneralPanel();
         JPanel lootTabPanel = buildLootPanel();
         JPanel debugTabPanel = buildDebugPanel();
 
@@ -124,12 +145,14 @@ public class SalvagingHelperPanel extends PluginPanel {
         tabGroup.setLayout(new BorderLayout(0, 0));
         MaterialTab generalTab = new MaterialTab("General", tabGroup, generalTabPanel);
         MaterialTab lootTab = new MaterialTab("Loot", tabGroup, lootTabPanel);
-        MaterialTab debugTab = new MaterialTab("Debug", tabGroup, debugTabPanel);
+        MaterialTab debugTab = new MaterialTab(ICON_BUG, tabGroup, debugTabPanel);
 
         generalTab.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        generalTab.setFont(FontManager.getRunescapeBoldFont());
         lootTab.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        lootTab.setFont(FontManager.getRunescapeBoldFont());
         debugTab.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
+        debugTab.setFont(FontManager.getRunescapeBoldFont());
 
         // Material Tabs
         tabGroup.addTab(generalTab);
@@ -147,11 +170,84 @@ public class SalvagingHelperPanel extends PluginPanel {
         container.add(displayPanel, BorderLayout.CENTER);
 
         add(container);
-        tabGroup.select(lootTab);
+        tabGroup.select(generalTab);
         collapseAllLoot();
     }
     //endregion
 
+    //region Build: General Panel
+    public JPanel buildGeneralPanel() {
+        JPanel generalContainer = new JPanel();
+        generalContainer.setLayout(new BoxLayout(generalContainer, BoxLayout.Y_AXIS));
+
+        JPanel generalSettingsContainer = new JPanel();
+        generalSettingsContainer.setBorder(doubleBorder);
+        generalSettingsContainer.setLayout(new BoxLayout(generalSettingsContainer, BoxLayout.Y_AXIS));
+        generalSettingsContainer.add(createSettingsCheckbox("drawShipwreckRadius"));
+        generalSettingsContainer.add(createSettingsCheckbox("drawHookLocation"));
+        generalSettingsContainer.add(createSettingsCheckbox("enableLootOverlays"));
+        generalSettingsContainer.add(createSettingsCheckbox("swapInvItemOptions"));
+        generalSettingsContainer.add(createSettingsCheckbox("idleAlerts"));
+        generalSettingsContainer.add(createSettingsCheckbox("extractorAlerts"));
+        generalSettingsContainer.add(createSettingsCheckbox("hideCrewmateOverhead"));
+        generalSettingsContainer.add(createSettingsCheckbox("hideOthersCrewmateOverhead"));
+        JPanel generalSettingsHeader = createSettingsHeader("Plugin modules", ICON_PLUGIN, generalSettingsContainer, true);
+
+        JPanel salvageModeDropdownContainer = new JPanel();
+        salvageModeDropdownContainer.setBorder(new EmptyBorder(1, 1, 1, 1));
+        salvageModeDropdownContainer.setLayout(new BoxLayout(salvageModeDropdownContainer, BoxLayout.X_AXIS));
+
+        DefaultComboBoxModel<SalvageMode> model = new DefaultComboBoxModel<>();
+        model.addElement(SalvageMode.SALVAGE_AND_SORT);
+        model.addElement(SalvageMode.SALVAGE_ONLY);
+        model.addElement(SalvageMode.SORT_ONLY);
+        JLabel salvageModeIcon = new JLabel(ICON_STRATEGY);
+        salvageModeComboBox = new JComboBox<>(model);
+        salvageModeComboBox.setSelectedItem(config.salvageMode());
+        salvageModeComboBox.setMaximumSize(new Dimension(120, 26));
+        salvageModeComboBox.addActionListener(event -> {
+            SalvageMode selectedOption = (SalvageMode) salvageModeComboBox.getSelectedItem();
+            if (selectedOption != config.salvageMode()) {
+                configManager.setConfiguration("salvagingHelper", "salvageMode", selectedOption);
+            }
+        });
+        salvageModeDropdownContainer.add(salvageModeIcon);
+        salvageModeDropdownContainer.add(Box.createRigidArea(new Dimension(4, 1)));
+        salvageModeDropdownContainer.add(salvageModeComboBox);
+
+        JPanel salvagingModeContainer = new JPanel();
+        salvagingModeContainer.setLayout(new BoxLayout(salvagingModeContainer, BoxLayout.Y_AXIS));
+        salvagingModeContainer.setBorder(doubleBorder);
+        salvagingModeContainer.add(salvageModeDropdownContainer);
+        salvagingModeContainer.add(createSettingsCheckbox("dropAllSalvage"));
+        salvagingModeContainer.add(createSettingsCheckbox("minMaxHookUptime"));
+        salvagingModeContainer.add(createSettingsCheckbox("cargoBeforeSort"));
+        salvagingModeContainer.add(createSettingsCheckbox("dockOnFull"));
+        JPanel salvagingModeHeader = createSettingsHeader("Salvaging strategy", ICON_HOOK, salvagingModeContainer, true);
+
+        JPanel overrideSettingsContainer = new JPanel();
+        overrideSettingsContainer.setBorder(doubleBorder);
+        overrideSettingsContainer.setLayout(new BoxLayout(overrideSettingsContainer, BoxLayout.Y_AXIS));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideGroundItems"));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideCrewmateLeftClick"));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideFacilityLeftClick"));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideShipwreckInspect"));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideNpcInteract"));
+        JPanel overrideSettingsHeader = createSettingsHeader("Overrides", ICON_SWAP, overrideSettingsContainer, true);
+
+        generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
+        generalContainer.add(generalSettingsHeader);
+        generalContainer.add(generalSettingsContainer);
+        generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
+        generalContainer.add(salvagingModeHeader);
+        generalContainer.add(salvagingModeContainer);
+        generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
+        generalContainer.add(overrideSettingsHeader);
+        generalContainer.add(overrideSettingsContainer);
+
+        return generalContainer;
+    }
+    //endregion
 
 
     //region Build: Debug Panel
@@ -172,7 +268,7 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         JButton idleNotifyButton = new JButton("Send idle notification");
         idleNotifyButton.addActionListener(e -> {
-            plugin.sendIdleNotification(); });
+            plugin.sendIdleNotification("test"); });
         debugContainer.add(idleNotifyButton);
 
         JButton dumpLogicButton = new JButton("Dump logic engine vars");
@@ -209,22 +305,73 @@ public class SalvagingHelperPanel extends PluginPanel {
         dumpBoatInfo.addActionListener(e -> {
             Boat b = plugin.boat;
             plugin.sendChatMessage("Helm: " + b.getHelmId() + ", ", false);
-            plugin.sendChatMessage("Cargo Hold: " + b.getCargoHoldId() + ", cat " + b.getCargoHoldType().toString() + ", cap: " + b.getCargoHoldCapacity(), false);
+            plugin.sendChatMessage("Cargo Hold: " + b.getCargoHoldId() + ", cat " + b.getCargoHoldType().toString() +
+                    ", cap: " + b.getCargoHoldCapacity(), false);
             plugin.sendChatMessage("Hook (port): " + b.getHookPortId() + ", " + b.getHookPortType().toString(), false);
             plugin.sendChatMessage("Hook (stb): " + b.getHookStarboardId() + ", " + b.getHookStarboardType().toString(), false);
+            plugin.sendChatMessage("Extractor: " + b.getCrystalExtractor().getId() + ", " + b.getCrystalExtractor().getWorldView().getId() + ", "+
+                    b.getCrystalExtractor().getLocalLocation().toString(), false);
         });
         debugContainer.add(dumpBoatInfo);
 
-        JButton dumpInvItemInfo = new JButton("Item composition info for red topaz");
+        JButton dumpInvItemInfo = new JButton("Dump loot container configs");
         dumpInvItemInfo.addActionListener(e -> {
-            clientThread.invoke( () -> {
-                ItemComposition itemComp = client.getItemDefinition(1629);
-                for (String action : itemComp.getInventoryActions()) {
-                    plugin.sendChatMessage(action, true);
-                }
-            });
+            for (LootContainer cont : LootContainer.values()) {
+                plugin.sendChatMessage(cont.getDefaultName()+": "+configManager.getConfiguration("salvagingHelper", cont.getConfigKey()), true);
+            }
+
         });
         debugContainer.add(dumpInvItemInfo);
+
+        JButton dumpConfigInfo = new JButton("Dump misc config info");
+        dumpConfigInfo.addActionListener(e -> {
+            plugin.sendChatMessage("getConfig: "+configManager.getConfig(SalvagingHelperConfig.class).toString(), false);
+            plugin.sendChatMessage("Config descriptor: "+configManager.getConfigDescriptor(config).toString(), false);
+            plugin.sendChatMessage("Config group: "+configManager.getConfigDescriptor(config).getGroup().toString(), false);
+            plugin.sendChatMessage("Config sections: "+configManager.getConfigDescriptor(config).getSections().toString(), false);
+            plugin.sendChatMessage("Config items: "+configManager.getConfigDescriptor(config).getItems().toString(), false);
+        });
+        debugContainer.add(dumpConfigInfo);
+
+        JButton extractorReloadInfo = new JButton("Debug extractor detach when reboarding");
+        extractorReloadInfo.addActionListener(e -> {
+            WorldEntity wE = plugin.boat.getBoatEntity();
+            Player p = client.getLocalPlayer();
+            GameObject ex = plugin.boat.getCrystalExtractor();
+
+            Tile[][] salvagingTiles = client.getTopLevelWorldView().getScene().getExtendedTiles()[0];
+            for (Tile[] rowOfTiles : salvagingTiles) {
+                if (rowOfTiles == null) {
+                    continue;
+                } // java is a Perfect Language with No Flaws
+                for (Tile singleTile : rowOfTiles) {
+                    if (singleTile == null) {
+                        continue;
+                    }
+                    for (GameObject gameObject : singleTile.getGameObjects()) {
+                        if (gameObject == null) {
+                            continue;
+                        }
+                        if (gameObject.getId() == 59702 || gameObject.getId() == 59703) {
+                            GameObject newEx = gameObject;
+                            plugin.sendChatMessage("|Extractor (env)|" + newEx.getWorldView().getId() + "|" + newEx.getLocalLocation().toString() + "|"
+                                    //+wE.transformToMainWorld(newEx.getLocalLocation()).toString()
+                                    , true);
+                        }
+                    }
+                }
+            }
+            plugin.sendChatMessage("|Player|"+p.getWorldView().getId()+"|"+p.getLocalLocation().toString()+
+                    "|"+wE.transformToMainWorld(p.getLocalLocation()).toString(), false);
+            plugin.sendChatMessage("|BoatEntity|"+wE.getWorldView().getId()+"|"+wE.getLocalLocation().toString()+
+                    "|"+wE.transformToMainWorld(wE.getLocalLocation()).toString(), false);
+            plugin.sendChatMessage("|Extractor (stored)|"+ex.getWorldView().getId()+"|"+ex.getLocalLocation().toString()+
+                    "|"+wE.transformToMainWorld(ex.getLocalLocation()).toString(), false);
+
+        });
+        debugContainer.add(extractorReloadInfo);
+
+
 
         return debugContainer;
     }
@@ -232,8 +379,11 @@ public class SalvagingHelperPanel extends PluginPanel {
 
     //region Build: Loot Panel
     public JPanel buildLootPanel() {
-        JPanel lootContainer = new JPanel(new BorderLayout(0, 0));
+        //JPanel lootContainer = new JPanel(new BorderLayout(0, 0));
+        JPanel lootContainer = new JPanel();
+        lootContainer.setLayout(new BoxLayout(lootContainer, BoxLayout.Y_AXIS));
         JPanel toolbarPanel = new JPanel();
+        JPanel containerPanel = createLootContainerPanel();
         JPanel contentPanel = new JPanel();
 
         //region Toolbar and Buttons
@@ -290,11 +440,13 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         //region Call "Create Salvage Panels" and Add
         for (SalvageType salvageType : SalvageType.values()) {
+            contentPanel.add(Box.createRigidArea(new Dimension(1, 2)));
             contentPanel.add(buildSalvageTypePanel(salvageType));
         }
 
-        lootContainer.add(toolbarPanel, BorderLayout.NORTH);
-        lootContainer.add(contentPanel, BorderLayout.CENTER);
+        lootContainer.add(toolbarPanel);
+        lootContainer.add(containerPanel);
+        lootContainer.add(contentPanel);
         //endregion
 
         return lootContainer;
@@ -313,7 +465,8 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         //region Category Panel
         containerPanel.setLayout(new BorderLayout(0, 0));
-        containerPanel.setBorder(new EmptyBorder(0,1,0,1));
+        //containerPanel.setBorder(new EmptyBorder(0,1,0,1));
+        containerPanel.setBorder(new LineBorder(Color.BLACK, 1));
 
         categorySubPanel.setLayout(new BoxLayout(categorySubPanel, BoxLayout.X_AXIS));
 
@@ -446,24 +599,160 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         return containerPanel;
     }
-    //endregion
 
-    //region Build: Misc Loot Panel
-    // TODO
-    public JPanel buildMiscLootPanel() {
-        return null;
+    public JPanel createLootContainerPanel() {
+        JPanel lootContainerContainer = new JPanel();
+        lootContainerContainer.setLayout(new BoxLayout(lootContainerContainer, BoxLayout.Y_AXIS));
+
+        JPanel containerSectionIconContainer = new JPanel(new GridLayout(2, 6, 5, 5));
+        containerSectionIconContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        containerSectionIconContainer.setBorder(new EmptyBorder(8, 15, 8, 15));
+
+        for (LootContainer container : LootContainer.values()) {
+            String configKey = container.getConfigKey();
+            String name = container.getDefaultName();
+            int firstItemId = container.getItemIds().get(0);
+
+            JButton containerButton = new JButton();
+            containerButton.setToolTipText("Enable/disable "+name);
+            containerButton.setPreferredSize(new Dimension(32, 32));
+
+            Boolean enabled = Boolean.parseBoolean(configManager.getConfiguration("salvagingHelper", configKey));
+
+            // Client thread isn't available to fetch icons when we are building panel, so queue it
+            AsyncBufferedImage itemSprite = itemManager.getImage(firstItemId);
+            itemSprite.onLoaded( () -> {
+                // This magic function means the icon doesn't hug a random corner of its box - thank you time tracker!
+                BufferedImage subIcon = itemSprite.getSubimage(0, 0, 32, 32);
+                ImageIcon scaledSprite = new ImageIcon(subIcon.getScaledInstance(26,26, Image.SCALE_SMOOTH));
+                containerButton.setIcon(scaledSprite);
+                containerButton.setHorizontalAlignment(SwingConstants.CENTER);
+                containerButton.setVerticalAlignment(SwingConstants.CENTER);
+            });
+
+            if (enabled) {
+                containerButton.setBackground(CONTAINER_BUTTON_ENABLED);
+            } else {
+                containerButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            }
+
+            containerButton.addActionListener(e -> {
+                toggleContainerButton(containerButton);
+                lootManager.updateContainerMaps();
+            });
+
+            toLootContainer.put(containerButton, container);
+            toContainerButton.put(container, containerButton);
+
+            containerSectionIconContainer.add(containerButton);
+
+        }
+
+        //JPanel containerSectionTitle = createSettingsHeader("Loot Container Configuration", null, containerSectionIconContainer, true);
+
+        //lootContainerContainer.add(containerSectionTitle);
+        lootContainerContainer.add(containerSectionIconContainer);
+
+        return lootContainerContainer;
     }
     //endregion
 
-/*    public void onSelectEvent(MaterialTab tab) {
-        config.setActiveTab((JPanel) tab.getContent());
+
+    //region Settings Builders
+
+    public JPanel createSettingsCheckbox(String configKey) {
+        JPanel settingsContainer = new JPanel(new BorderLayout());
+        settingsContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
+        settingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        JLabel settingName = new JLabel();
+        JCheckBox checkBox = new JCheckBox();
+
+        Collection<ConfigItemDescriptor> configItems = configManager.getConfigDescriptor(config).getItems();
+        for (ConfigItemDescriptor itemDesc : configItems) {
+            if (itemDesc.key().equals(configKey)) {
+                ConfigItem item = itemDesc.getItem();
+                settingName.setText(item.name());
+                settingName.setToolTipText(item.description());
+                checkBox.setSelected(Boolean.parseBoolean(configManager.getConfiguration("salvagingHelper", configKey)));
+            }
+        }
+
+        checkBox.addItemListener(e -> {
+            if (e.getStateChange()==ItemEvent.SELECTED) {
+                configManager.setConfiguration("salvagingHelper", configKey, true);
+            } else if (e.getStateChange()==ItemEvent.DESELECTED) {
+                configManager.setConfiguration("salvagingHelper", configKey, false);
+            }
+        });
+
+        settingsContainer.add(settingName, BorderLayout.WEST);
+        settingsContainer.add(checkBox, BorderLayout.EAST);
+
+        return settingsContainer;
     }
 
-    public void switchTab(MaterialTab toTab) {
-        //tabGroup.select(toTab);
-    }*/
+    public JPanel createSettingsHeader(String label, ImageIcon icon, JPanel childPanel, Boolean shouldCollapse) {
 
+        // settingsHeaderContainer <- (iconTitlePanel, dropdown)
+        //                                    |
+        //                             iconTitlePanel <- (iconLabel, titleLabel)
 
+        JPanel settingsHeaderContainer = new JPanel(new BorderLayout());
+        settingsHeaderContainer.setBorder(new EmptyBorder(4, 7, 4, 4));
+        settingsHeaderContainer.setPreferredSize(new Dimension(-1, 28)); // or SIDEBAR_MINUS_SCROLL?
+        settingsHeaderContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        JPanel iconTitlePanel = new JPanel();
+        JLabel titleLabel = new JLabel(label);
+        titleLabel.setFont(FontManager.getRunescapeBoldFont());
+        titleLabel.setForeground(Color.WHITE);
+        iconTitlePanel.setLayout(new BoxLayout(iconTitlePanel, BoxLayout.X_AXIS));
+
+        if (icon != null) {
+            JLabel iconLabel = new JLabel(icon);
+            iconTitlePanel.add(iconLabel);
+            iconTitlePanel.add(Box.createRigidArea(new Dimension(5, 1)));
+        }
+        iconTitlePanel.add(titleLabel);
+
+        if (shouldCollapse) {
+            JLabel dropdown = new JLabel(ICON_DROPDOWN_CLICKED);
+            dropdown.setToolTipText("Expand or collapse section");
+            dropdown.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent mouseEvent) {
+                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED_HOVER ? ICON_DROPDOWN_CLICKED : ICON_DROPDOWN_UNCLICKED );
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    childPanel.setVisible(!childPanel.isVisible());
+                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED ? ICON_DROPDOWN_UNCLICKED : ICON_DROPDOWN_CLICKED );
+                }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED ? ICON_DROPDOWN_CLICKED_HOVER : ICON_DROPDOWN_UNCLICKED_HOVER );
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED_HOVER ? ICON_DROPDOWN_CLICKED : ICON_DROPDOWN_UNCLICKED );
+                }
+            });
+            settingsHeaderContainer.add(dropdown, BorderLayout.EAST);
+        }
+
+        settingsHeaderContainer.add(iconTitlePanel, BorderLayout.WEST);
+
+        return settingsHeaderContainer;
+    }
+
+    public void toggleGeneralPanelCollapsed(JPanel panelToCollapse, JLabel collapseIcon){
+
+    }
+    //endregion
 
     public void setItemCategory(int itemId, LootOption lootCategory) {
         LootItem lootItem = lootManager.lootItemMap.get(itemId);
@@ -527,34 +816,16 @@ public class SalvagingHelperPanel extends PluginPanel {
         }
     }
 
-/*    public void createJPanelListener(JPanel panel, String panelName, String subType) {
-        panel.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                JPanel eventPanel = (JPanel) e.getComponent();
-                if (plugin.debug && config.showSidePanelMessages()) {
-                    plugin.debugLog(Arrays.asList(
-                            panelName,
-                            subType,
-                            eventPanel.getWidth()+"",
-                            eventPanel.getHeight()+"",
-                            e.getSource().toString(),
-                            eventPanel.getLayout().toString(),
-                            eventPanel.getPreferredSize().getWidth()+"",
-                            eventPanel.getPreferredSize().getHeight()+"",
-                            eventPanel.getMinimumSize().getWidth()+"",
-                            eventPanel.getMinimumSize().getHeight()+"",
-                            eventPanel.getMaximumSize().getWidth()+"",
-                            eventPanel.getMaximumSize().getHeight()+"",
-                            eventPanel.getComponentCount()+"", //# Subcomponents
-                            eventPanel.getParent().toString(), // Parent
-                            String.valueOf(eventPanel.isShowing()),
-                            String.valueOf(eventPanel.isVisible())
-                    ), plugin);
-                }
-            }
-        });
-    }*/
-
-
+    public void toggleContainerButton(JButton button) {
+        // TODO
+        LootContainer container = toLootContainer.get(button);
+        Boolean isEnabled = Boolean.parseBoolean(configManager.getConfiguration("salvagingHelper", container.getConfigKey()));
+        if (isEnabled) {
+            configManager.setConfiguration("salvagingHelper", container.getConfigKey(), false);
+            button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        } else {
+            configManager.setConfiguration("salvagingHelper", container.getConfigKey(), true);
+            button.setBackground(CONTAINER_BUTTON_ENABLED);
+        }
+    }
 }

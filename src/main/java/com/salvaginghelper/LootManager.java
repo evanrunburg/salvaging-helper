@@ -13,16 +13,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LootManager {
 
-    //private HashMap<Integer, LootConfig> LootConfigMap = new HashMap<>();
-    //private HashMap<Integer, LootOption> CategoryMap;
     private ConcurrentHashMap<Integer, Color> underlayColorMap;
     public ConcurrentHashMap<Integer, LootItem> lootItemMap;
-    public HashMap<LootOption, Color> lootOptionToColor = new HashMap<>();
-    //private HashMap<Integer, LootItem> LeftClickMap = new HashMap<>();
+    public ConcurrentHashMap<LootOption, Color> lootOptionToColor = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, LootContainer> toContainer = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, LootContainer> itemToItsContainer = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<LootContainer, Boolean> toEnabled = new ConcurrentHashMap<>();
 
     final private ConfigManager configManager;
     final private SalvagingHelperConfig config;
@@ -54,7 +55,6 @@ public class LootManager {
 
     //endregion
 
-
     @RequiredArgsConstructor @Getter
     public enum SalvageType {
         SMALL("Small Salvage", 15, ItemID.SAILING_SMALL_SHIPWRECK_SALVAGE, smallSalvageItems),
@@ -75,15 +75,15 @@ public class LootManager {
 
     @RequiredArgsConstructor @Getter
     public enum LootOption { // Conditionals are Container, Consume, Equip, Process, Cargo_Hold
-        KEEP("Keep", new ArrayList<>(Arrays.asList("Use"))),
+        KEEP("Keep", new ArrayList<>(List.of("Use"))),
         DROP("Drop", new ArrayList<>(Arrays.asList("Drop", "Destroy"))),
-        CONTAINER("Container", new ArrayList<>(Arrays.asList("Use"))),
-        ALCH("Alch", new ArrayList<>(Arrays.asList("Use"))),
+        CONTAINER("Container", new ArrayList<>(List.of("Use"))),
+        ALCH("Alch", new ArrayList<>(List.of("Use"))),
         CONSUME("Consume", new ArrayList<>(Arrays.asList("Use", "Drink", "Apply"))),
         EQUIP("Equip", new ArrayList<>(Arrays.asList("Equip", "Wear", "Wield"))),
-        PROCESS("Process", new ArrayList<>(Arrays.asList("Use"))),
-        CARGO_HOLD("Cargo Hold", new ArrayList<>(Arrays.asList("Use"))), // Eligible items: https://oldschool.runescape.wiki/w/Cargo_hold
-        OTHER("Other", new ArrayList<>(Arrays.asList("Use")));
+        PROCESS("Process", new ArrayList<>(List.of("Use"))),
+        CARGO_HOLD("Cargo Hold", new ArrayList<>(List.of("Use"))), // Eligible items: https://oldschool.runescape.wiki/w/Cargo_hold
+        OTHER("Other", new ArrayList<>(List.of("Use")));
 
         private final String name;
         private final ArrayList<String> menuOptionWhitelist;
@@ -113,6 +113,7 @@ public class LootManager {
         underlayColorMap = new ConcurrentHashMap<>();
         rebuildLootColors();
         initializeItemDefaults();
+        buildContainerMaps();
     }
 
     public void rebuildLootColors() {
@@ -136,25 +137,42 @@ public class LootManager {
             String singleLine;
             while ((singleLine = br.readLine()) != null) {
                 String[] params = singleLine.split(ITEM_DELIM);
-                LootItem lootItem = new LootItem(Integer.parseInt(params[0]), configManager, lootItemMap, LootOption.valueOf(params[1]),
-                        Boolean.parseBoolean(params[2]), Boolean.parseBoolean(params[3]), Boolean.parseBoolean(params[4]),
-                        Boolean.parseBoolean(params[5]), Boolean.parseBoolean(params[6]), params[7]);
+                LootItem lootItem = new LootItem(Integer.parseInt(params[0]), configManager, lootItemMap,
+                        LootOption.valueOf(params[1]), Boolean.parseBoolean(params[2]), Boolean.parseBoolean(params[3]),
+                        Boolean.parseBoolean(params[4]), Boolean.parseBoolean(params[5]),
+                        Boolean.parseBoolean(params[6]), params[7], parseLootCategory(params[8]));
                 lootItemMap.put(lootItem.getItemId(), lootItem);
-                setLootColor(lootItem.getItemId(), lootItem.getLootCategory(), config);
+                setLootColor(lootItem.getItemId(), lootItem.getLootCategory());
             }
         } catch (IOException e) {
-            plugin.sendChatMessage("SalvagingHelper couldn't find file to import loot item data: "+e.toString(), true);
+            plugin.sendChatMessage("Salvaging Helper couldn't find file to import loot item data: "+e.toString(), true);
         }
     }
 
-    public void setLootColor(int itemId, LootOption lootOption, SalvagingHelperConfig config) {
+    private LootContainer parseLootCategory(String toParse) {
+        if (toParse.equals("*")) {
+            return null;
+        } else {
+            try {
+                LootContainer c = LootContainer.valueOf(toParse);
+                return c;
+            } catch (IllegalArgumentException e) {
+                plugin.sendChatMessage("Salvaging Helper: error parsing params[8] while building LootItem", false);
+            }
+        }
+        return null;
+    }
+
+    public void setLootColor(int itemId, LootOption lootOption) {
         underlayColorMap.put(itemId, lootOptionToColor.get(lootOption));
     }
 
     public void rebuildUnderlayColorMap() {
         for (int item : underlayColorMap.keySet()) {
             LootItem lootItem = lootItemMap.get(item);
-            setLootColor(item, lootItem.getLootCategory(), config);
+            if (lootItem != null) {
+                setLootColor(item, lootItem.getLootCategory());
+            }
         }
     }
 
@@ -168,5 +186,62 @@ public class LootManager {
 
     public LootItem getLootItem(Item item) {
         return lootItemMap.get(item.getId());
+    }
+
+    public LootContainer isItemLootContainer(int itemId) {
+        for (LootContainer container : LootContainer.values()) {
+            if (container.getItemIds().contains(itemId)) {
+                return container;
+            }
+        }
+        return null;
+    }
+
+    public void buildContainerMaps() {
+        for (LootContainer container : LootContainer.values()) {
+            for (int itemId : container.getItemIds()) {
+                toContainer.put(itemId, container);
+            }
+        }
+
+        toEnabled.put(LootContainer.LOG_BASKET, config.logBasketEnabled());
+        toEnabled.put(LootContainer.PLANK_SACK, config.plankSackEnabled());
+        toEnabled.put(LootContainer.GEM_BAG, config.gemBagEnabled());
+        toEnabled.put(LootContainer.HERB_SACK, config.herbSackEnabled());
+        toEnabled.put(LootContainer.FISH_BARREL, config.fishBarrelEnabled());
+        toEnabled.put(LootContainer.SOULBEARER, config.soulbearerEnabled());
+        toEnabled.put(LootContainer.RUNE_POUCH, config.runePouchEnabled());
+        toEnabled.put(LootContainer.SEED_BOX, config.seedBoxEnabled());
+        toEnabled.put(LootContainer.COAL_BAG, config.coalBagEnabled());
+        toEnabled.put(LootContainer.TACKLE_BOX, config.tackleBoxEnabled());
+        toEnabled.put(LootContainer.HUNTSMAN_KIT, config.huntsmanKitEnabled());
+        toEnabled.put(LootContainer.REAGENT_POUCH, config.reagentPouchEnabled());
+
+        for (LootContainer container : LootContainer.values()) {
+            for (int itemId : container.getEligibleItems()) {
+                itemToItsContainer.put(itemId, container);
+            }
+        }
+    }
+
+    public void setColor(int itemId, Color color) {
+        underlayColorMap.put(itemId, color);
+    }
+
+    public void updateContainerMaps() {
+        toEnabled.clear();
+        buildContainerMaps();
+    }
+
+    public LootContainer getContainer(int itemId) {
+        return toContainer.get(itemId);
+    }
+
+    public LootContainer getContainerFromEligibleItem(int itemId) {
+        return itemToItsContainer.get(itemId);
+    }
+
+    public Boolean isContainerEnabled(LootContainer container) {
+        return toEnabled.get(container);
     }
 }

@@ -1,5 +1,7 @@
 package com.salvaginghelper;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
@@ -14,9 +16,9 @@ import java.util.stream.Stream;
 
 import com.salvaginghelper.Crewmate.Activity;
 import com.salvaginghelper.LootManager.LootOption;
+import net.runelite.client.config.ConfigManager;
 
 public class ActionHandler {
-
 
     //region Enum - Instruction
     public enum Instruction {
@@ -33,6 +35,19 @@ public class ActionHandler {
     }
     //endregion
 
+    //region Enum - Salvaging Mode
+    @RequiredArgsConstructor @Getter
+    public enum SalvageMode {
+        SALVAGE_AND_SORT("Salvage + Sort"),
+        SALVAGE_ONLY("Salvage Only"),
+        SORT_ONLY("Sort Only");
+
+        private final String name;
+
+        @Override
+        public String toString() { return name; }
+    }
+    //endregion
 
     //region Variable declarations
     public static HashMap<Integer, Activity> mapAnimToActivity = new HashMap<>();
@@ -57,7 +72,10 @@ public class ActionHandler {
     private boolean inventoryWasUpdated = false;
     private boolean invHasSalvage = false;
     // Containers
+    private HashMap<Integer, LootContainer> currentContainers = new HashMap<>();
+    private ArrayList<Integer> currentContainerableItems = new ArrayList<>();
     private boolean invHasContainerLogBasket = false;
+    private int logBasketItemId = -1;
     private boolean isLogBasketFull = false;
     private boolean containsDropLogs = false;
     private boolean invHasContainerPlankSack = false;
@@ -75,8 +93,8 @@ public class ActionHandler {
     private boolean isSoulbearerEmpty = false;
     private boolean invHasContainerRunePouch = false;
     private boolean isRunePouchFull = false;
-    private boolean invHasContainerBoltPouch = false;
-    private boolean isBoltPouchFull = false;
+    //private boolean invHasContainerBoltPouch = false;
+    //private boolean isBoltPouchFull = false;
     private boolean invHasContainerSeedBox = false;
     private boolean isSeedBoxFull = false;
     private boolean containsDropSeeds = false;
@@ -102,12 +120,10 @@ public class ActionHandler {
     private boolean containsOtherLoot = false;
     //endregion
 
-
     @Setter
     private ItemContainer cargoHold;
     private ArrayList<Item> cargoContainerItems = new ArrayList<>();
     private int cargoHoldCapacity;
-    private int cargoHoldInventoryId = 33732;
     public boolean cargoHoldNeedsUpdate = false;
     public boolean cargoHoldFull;
     private long cargoHoldSalvageCount;
@@ -116,11 +132,13 @@ public class ActionHandler {
 
     private final Client client;
     private final LootManager lootManager;
+    private final ConfigManager configManager;
     //endregion
 
     //region Constructor
     public ActionHandler(SalvagingHelperPlugin plugin, SalvagingHelperConfig config, Client client, LootManager lootManager,
-                         List<Crewmate> activeCrewmates, SalvagingHelperObjectOverlay objOverlay, Boat boat) {
+                         List<Crewmate> activeCrewmates, SalvagingHelperObjectOverlay objOverlay, Boat boat,
+                         ConfigManager configManager) {
         // Initialize maps
         this.plugin = plugin;
         this.config = config;
@@ -128,6 +146,7 @@ public class ActionHandler {
         this.boat = boat;
         this.lootManager = lootManager;
         this.client = client;
+        this.configManager = configManager;
         buildAnimationMap();
         buildCrewmateMap(activeCrewmates);
     }
@@ -152,7 +171,6 @@ public class ActionHandler {
         int hookCount = activeHooks + inactiveHooks;
         int closestActiveShipwreckDistance = closestActiveWreckDist(client);
         int closestInactiveShipwreckDistance = closestInactiveWreckDist(client);
-        //plugin.sendChatMessage("Closest inactive wreck: "+closestInactiveShipwreckDistance, true);
 
         // Always evaluate these
         // Salvaging station
@@ -173,7 +191,7 @@ public class ActionHandler {
                     (plugin.playerCurrentActivity==Activity.EXTRACTING && plugin.playerLastActivity==Activity.SORTING_SALVAGE))) {
             highlight(boat.getCargoHold(), config.cargoHoldColor());
             //plugin.sendChatMessage("Highlighting cargo hold (Ready for More Salvage)", true);
-            // TODO - add condition that there's enough salvage in the cargo hold
+            // TODO - add condition that there's enough salvage in the cargo hold?
         }
         if (cargoHoldFull) {
             highlight(boat.getCargoHold(), Color.RED);
@@ -186,7 +204,7 @@ public class ActionHandler {
         if (inactiveHooks>0 && boat.getBoatMoveMode()==0 && currentInstruction!=Instruction.SAIL_TO_SHIPWRECK
                     && closestInactiveShipwreckDistance < 1400) { // && closestActiveShipwreckDistance>1200
             newInstruction = Instruction.SAIL_TO_SHIPWRECK;
-            plugin.sendIdleNotification();
+            plugin.sendIdleNotification("Move to a new shipwreck!");
         }
         if (inactiveHooks==0 && plugin.playerCurrentActivity!=Activity.IDLE) { //  && !invHasSalvage?
             newInstruction = Instruction.JUST_CHILLING;
@@ -248,7 +266,7 @@ public class ActionHandler {
         int[] cannonAnims = new int[]{ 13325, 13326, 13327 };
         int[] trawlingAnims = new int[]{ 13451, 13452, 13470, 13471, 13474 };
         int[] extractorAnims = new int[]{ 13176, 13178 };
-        int[] repairAnims = new int[]{   };
+        int[] repairAnims = new int[]{ 13252 };
         int[] steeringAnims = new int[]{ 13351, 13352, 13353, 13354, 13355, 13362, 13363, 13364, 13365, 13366 };
         int[] otherFishingAnims = new int[]{ 13436 };
         int[] otherAnims = new int[]{ 3660, 13310, 13317, 13318 };
@@ -278,6 +296,7 @@ public class ActionHandler {
         }
     }
 
+    // TODO - reimplement with stream()
     public void collectShipwrecks(Client client, boolean rebuild) {
         // GameObject transmogrification makes things wonky and means we can't rely on our regular event
         // listeners to tell us when shipwrecks are and aren't there/active
@@ -461,20 +480,7 @@ public class ActionHandler {
         if (!inventoryWasUpdated) { return; }
 
         Item[] items = inv.getItems();
-
-        invHasSalvage = plugin.salvageItemIds.stream().anyMatch(i -> inv.contains(i));
-
-        // Containers
-        invHasContainerLogBasket = inv.contains(28140) || inv.contains(28142) || inv.contains(28143) || inv.contains(28145);
-        // TODO - account for wearable version
-        invHasContainerPlankSack = inv.contains(24882);
-        invHasContainerHerbSack = (inv.contains(13226) || inv.contains(24478)); // Closed, open
-        invHasContainerGemBag = (inv.contains(24481) || inv.contains(12020));  // open, closed
-        invHasContainerFishBarrel = (inv.contains(25582) || inv.contains(25584) || inv.contains(25585)
-                || inv.contains(25587)); // TODO - wearable?
-        invHasContainerSoulbearer = inv.contains(19634);
-        invHasContainerRunePouch = (inv.contains(12791) || inv.contains(23650) || inv.contains(24416) ||
-                inv.contains(27281) || inv.contains(27509));
+        invHasSalvage = SalvagingHelperPlugin.salvageItemIds.stream().anyMatch(i -> inv.contains(i));
 
         // LootOption categories present
         List<LootItem> invItemStream = Stream.of(inv.getItems()).map(Item::getId).map(lootManager::getLootItem)
@@ -489,7 +495,85 @@ public class ActionHandler {
         containsCargoHoldLoot = invItemStream.stream().anyMatch(x -> x.getLootCategory()==LootOption.CARGO_HOLD);
         containsOtherLoot = invItemStream.stream().anyMatch(x -> x.getLootCategory()==LootOption.OTHER);
 
+        // Containers
+        for (LootContainer c : LootContainer.values()) {
+            highlight(c, clear);
+        }
+        currentContainers.clear();
+        currentContainerableItems.clear();
+        invHasContainerLogBasket = invHasContainer(LootContainer.LOG_BASKET, inv);
+        invHasContainerPlankSack = invHasContainer(LootContainer.PLANK_SACK, inv);
+        invHasContainerGemBag = invHasContainer(LootContainer.GEM_BAG, inv);
+        invHasContainerHerbSack = invHasContainer(LootContainer.HERB_SACK, inv);
+        invHasContainerFishBarrel = invHasContainer(LootContainer.FISH_BARREL, inv);
+        invHasContainerSoulbearer = invHasContainer(LootContainer.SOULBEARER, inv);
+        invHasContainerRunePouch = invHasContainer(LootContainer.RUNE_POUCH, inv);
+        invHasContainerSeedBox = invHasContainer(LootContainer.SEED_BOX, inv);
+        invHasContainerCoalBag = invHasContainer(LootContainer.COAL_BAG, inv);
+        invHasContainerTackleBox = invHasContainer(LootContainer.TACKLE_BOX, inv);
+        invHasContainerHuntsmanKit = invHasContainer(LootContainer.HUNTSMAN_KIT, inv);
+        invHasContainerReagentPouch = invHasContainer(LootContainer.REAGENT_POUCH, inv);
+
+
+        for (Item item : items) {
+            int id = item.getId();
+            if (isSalvagingLoot(id)) {
+                if (getLootCategory(id) == LootOption.CONTAINER) {
+                    LootContainer container = lootManager.getContainerFromEligibleItem(id);
+
+                    // If we have an item's container and it's we can left-click to fill, highlight that to streamline
+                    if (invHasContainer(container, inv) && lootManager.isContainerEnabled(container)) { // Updates currentContainers
+                        if (container.getHasLeftClickFill()) {
+                            highlight(id, clear);
+                        } else {
+                            highlight(id, config.containerColor());
+                        }
+                    } else {
+                        highlight(id, config.containerColor());
+                    }
+                }
+            }
+        }
+
+        // Highlight qualifying containers
+        for (int itemId : currentContainers.keySet()) {
+            LootContainer c = currentContainers.get(itemId);
+            if (invContainsEligibleLoot(c, inv) && !invContainsIneligibleLoot(c, inv)) {
+                lootManager.setColor(itemId, config.containerColor());
+            }
+        }
+
+        // Highlight cargo hold loot
+        if (containsCargoHoldLoot && !containsDroppableLoot) {
+            // TODO - finish
+        }
+
+        // Highlight salvage
+        highlightAllSalvage(false, null);
+        if (config.dropAllSalvage()) {
+            highlightAllSalvage(true, config.dropColor());
+        } else if (!containsDroppableLoot) {
+            highlightAllSalvage(true, clear);
+        }
+
+        // Reset flag
         inventoryWasUpdated = false;
+    }
+
+    public LootOption getLootCategory(int itemId) {
+        LootItem lootItem = lootManager.lootItemMap.get(itemId);
+        if (lootItem != null) {
+            return lootItem.getLootCategory();
+        }
+        return null;
+    }
+
+    public Boolean isSalvagingLoot(int itemId) {
+        if (itemId > 0 && lootManager.lootItemMap.containsKey(itemId)){
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public void setInventory(ItemContainer newInventory) {
@@ -560,21 +644,68 @@ public class ActionHandler {
         cargoContainerItems.addAll(List.of(cargoHold.getItems()));
         cargoHoldCapacity = boat.getCargoHoldCapacity();
         cargoHoldSalvageCount = cargoContainerItems.stream().filter(x ->
-                plugin.salvageItemIds.contains(x.getId())).count();
+                SalvagingHelperPlugin.salvageItemIds.contains(x.getId())).count();
         cargoHoldFull = (cargoHoldCapacity == cargoHold.count());
         cargoHoldNeedsUpdate = false;
     }
 
-    private void highlight(GameObject object, Color newColor) {
+    public void highlight(int itemId, Color newColor) {
+        lootManager.setColor(itemId, newColor);
+    }
+
+    public void highlight(GameObject object, Color newColor) {
         if (object!=null) {
             objectHighlightMap.put(object, newColor);
         }
     }
 
-    private void highlight(NPC npc, Color newColor) {
+    public void highlight(NPC npc, Color newColor) {
         if (npc!=null) {
             npcHighlightMap.put(npc, newColor);
         }
+    }
+
+    private void highlight(LootContainer lootContainer, Color newColor) {
+        if (lootContainer!=null) {
+            for (int itemId : lootContainer.getItemIds()) {
+                lootManager.setColor(itemId, newColor!=null ? newColor : config.containerColor());
+            }
+        }
+    }
+
+    // Checks both that inventory contains the physical item AND that it's enabled in config
+    public Boolean invHasContainer(LootContainer container, ItemContainer inv) {
+        List<Integer> containerIds = container.getItemIds();
+        for (int itemId : containerIds) {
+            if (inv.contains(itemId)) {
+                currentContainers.put(itemId, container);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Boolean invContainsEligibleLoot(LootContainer container, ItemContainer inv) {
+        List<Integer> itemIds = container.getEligibleItems();
+        for (int itemId : itemIds) {
+            if (inv.contains(itemId) && lootManager.getLootItem(itemId).getLootCategory()==LootOption.CONTAINER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Boolean invContainsIneligibleLoot(LootContainer container, ItemContainer inv) {
+        List<Integer> itemIds = container.getEligibleItems();
+        for (int itemId : itemIds) {
+            if (inv.contains(itemId)) {
+                LootOption category = lootManager.lootItemMap.get(itemId).getLootCategory();
+                if (category != LootOption.CONTAINER && category != LootOption.KEEP) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void dumpActionHandlerVars() {
@@ -592,8 +723,23 @@ public class ActionHandler {
         plugin.sendChatMessage("closestInactiveShipwreckDistance: "+closestInactiveWreckDist(client), false);
         plugin.sendChatMessage("cargoHoldCapacity: "+cargoHoldCapacity, false);
         plugin.sendChatMessage("cargoHold.count(): "+cargoHold.count(), false);
-
     }
+
+    // Pass null for color to use CargoHold category default
+    public void highlightAllSalvage(Boolean highlight, Color override) {
+        for (int itemId : SalvagingHelperPlugin.salvageItemIds) {
+            if (highlight) {
+                if (override != null) {
+                    highlight(itemId, override);
+                } else {
+                    highlight(itemId, config.cargoHoldColor());
+                }
+            } else {
+                highlight(itemId, clear);
+            }
+        }
+    }
+
 
     //endregion
 }

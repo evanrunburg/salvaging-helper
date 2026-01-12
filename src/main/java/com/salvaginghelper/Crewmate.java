@@ -68,6 +68,7 @@ public class Crewmate {
 
     private final Client client;
     private final SalvagingHelperPlugin plugin;
+    private final SalvagingHelperConfig config;
 
     @Getter
     private final int slot;
@@ -92,9 +93,8 @@ public class Crewmate {
     //</editor-fold>
 
     //<editor-fold desc="Class Constructor">
-    public Crewmate(SalvagingHelperPlugin plugin, int slotNumber, int npcCrewmemberNumber, boolean isOnBoat, Client parentClient, int position) {
+    public Crewmate(SalvagingHelperPlugin plugin, SalvagingHelperConfig config, int slotNumber, int npcCrewmemberNumber, boolean isOnBoat, Client parentClient, int position) {
 
-        //plugin.sendChatMessage("Creating new crew member: slot "+slotNumber+", crewmember #"+npcCrewmemberNumber+", position "+position);
         this.slot = slotNumber;
         this.crewmemberNumber = npcCrewmemberNumber;
         this.assignedTask = Activity.IDLE;
@@ -103,6 +103,7 @@ public class Crewmate {
         this.client = parentClient;
         this.assignedStationNumber = position;
         this.plugin = plugin;
+        this.config = config;
 
         // Load variables per crewmate
         switch (npcCrewmemberNumber) {
@@ -183,7 +184,10 @@ public class Crewmate {
         }
 
         plugin.toCrewmate.put(this.npcId, this);
-        plugin.leftClickManager.deprioNPCMap.put(this.npcId, true); // TODO: make this a config option
+
+        if (config.hideCrewmateLeftClick()) {
+            plugin.leftClickManager.deprioNPCMap.put(this.npcId, true);
+        }
 
         if (isOnBoat) {
             matchToNPC();

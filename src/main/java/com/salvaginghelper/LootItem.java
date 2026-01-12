@@ -23,17 +23,20 @@ public class LootItem {
     //private Boolean isNameOverridden = false;
     @Getter
     private String name;
+    @Getter
+    private final LootContainer container;
     private final ConfigManager configManager;
     private final ConcurrentHashMap<Integer, LootItem> itemIdMap;
 
 
     public LootItem(int itemId, ConfigManager configManager, ConcurrentHashMap<Integer, LootItem> itemMap,
                     LootOption defaultLootOption, boolean canContainer, boolean canConsume, boolean canEquip,
-                    boolean canProcess, boolean canCargoHold, String newName) {
+                    boolean canProcess, boolean canCargoHold, String newName, LootContainer container) {
 
         this.itemId = itemId;
         this.configManager = configManager;
         this.itemIdMap = itemMap;
+        this.container = container;
 
         LootOption savedLootOption = configManager.getConfiguration(SalvagingHelperConfig.GROUP, "item_"+itemId, LootOption.class);
         lootCategory = (savedLootOption != null) ? savedLootOption : defaultLootOption;

@@ -40,8 +40,6 @@ public class LeftClickManager {
         this.menuManager = menuManager;
         this.lootManager = lootManager;
         this.actionHandler = actionHandler;
-
-        buildNPCsInTheWayList();
     }
 
     public void process(Menu m) {
@@ -51,25 +49,19 @@ public class LeftClickManager {
         int dropIndex = -1;
         for (int i=0; i<menuEntries.length; i++) {
             int k = processOneEntry(menuEntries[i]);
-            //plugin.sendChatMessage("PROCESS ONE ENTRY", false);
             if (k == SWAP_DROP) {
-                //plugin.sendChatMessage("SWAP DROP 1", false);
                 dropIndex = i;
                 needSwap = SWAP_DROP;
             }
             else if (k == SWAP_USE) {
                 needSwap = SWAP_USE;
-                //plugin.sendChatMessage("SWAP USE 2", false);
-
             }
         }
-
         if (needSwap == SWAP_DROP) {
             MenuEntry[] newMenu = swapEntryToTop(menuEntries, dropIndex);
             m.setMenuEntries(newMenu);
             return;
         } else if (needSwap == SWAP_USE) {
-            //plugin.sendChatMessage("SWAP USE", false);
             int useIndex = getMenuOptionIndex(menuEntries, "Use");
             if (useIndex > 0) {
                 MenuEntry[] newMenu = swapEntryToTop(menuEntries, useIndex);
@@ -83,37 +75,60 @@ public class LeftClickManager {
     public int processOneEntry(MenuEntry e) {
         String opt = e.getOption();
         int idf = e.getIdentifier();
-        //plugin.sendChatMessage("Start - opt: "+opt, false);
 
-        // GameObjects
+        // Facilities
         if (boatOptionsToDeprio.contains(opt) ) {
             if (idf>0) {
-                if (deprioObjMap.containsKey(idf) && deprioObjMap.get(idf)==true) {
+                if (deprioObjMap.containsKey(idf) && deprioObjMap.get(idf)==true && config.hideFacilityLeftClick()) {
                     e.setDeprioritized(true);
                 }
             }
         }
-
         // Shipwrecks
-        else if (opt.equals("Inspect") && plugin.activeShipwreckIds.contains(idf)) {
-            e.setDeprioritized(true);
-
+        else if (opt.equals("Inspect") && SalvagingHelperPlugin.activeShipwreckIds.contains(idf)) {
+            if (config.hideShipwreckInspect()) {
+                e.setDeprioritized(true);
+            }
+        }
         // Crewmates
-        } else if (opt.equals("Command")) {
+        else if (opt.equals("Command")) {
             if (e.getNpc()!=null) {
                 int npcId = e.getNpc().getId();
-                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId)) {
+                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId) && config.hideCrewmateLeftClick()) {
                     e.setDeprioritized(true);
                 }
             }
         }
-
+        // Other NPCs
+        else if (opt.equals("Talk-to") || opt.equals("Dive")) {
+            //plugin.sendChatMessage("ping on npc id "+e.getNpc().getId(), false);
+            if (e.getNpc()!=null) {
+                int npcId = e.getNpc().getId();
+                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId) && config.hideNpcInteract()) {
+                    e.setDeprioritized(true);
+                }
+            }
+        }
+        // Ground items
+        else if (e.getType()==MenuAction.GROUND_ITEM_THIRD_OPTION && config.hideGroundItems()){
+            e.setDeprioritized(true);
+        }
         // Inventory items
-        else if (e.getItemId()>0 && e.getParam1()==9764864) {
-            //plugin.sendChatMessage("hit", false);
+        else if (e.getItemId()>0 && e.getParam1()==9764864 && config.swapInvItemOptions()) {
             int id = e.getItemId();
-            //plugin.sendChatMessage("1", false);
-            // TODO - modify to allow containers to be handled
+            // TODO - modify to allow containers to be handled - swap fill on containers
+
+            // Support drop-all-salvage even if it's rancid
+            if (SalvagingHelperPlugin.salvageItemIds.contains(id)) {
+                if (config.dropAllSalvage() && "Drop".equals(opt)) {
+                    e.setType(MenuAction.CC_OP);
+                    e.setDeprioritized(false);
+                    return SWAP_DROP;
+                } else {
+                    return 0;
+                }
+            }
+
             if (lootManager.getLootItem(id)==null) {
                 return 0;
             }
@@ -122,18 +137,16 @@ public class LeftClickManager {
                 return 0;
             }
 
-            //plugin.sendChatMessage("2", false);
             LootOption defaultLeftClick = lootManager.getLootItem(id).getLootCategory();
 
             if (defaultLeftClick.getMenuOptionWhitelist().contains(opt) && defaultLeftClick==LootOption.DROP) {
                 // Drop option's default menu action type causes it to be auto-deprioritized, so swap it out
                 e.setType(MenuAction.CC_OP);
                 e.setDeprioritized(false);
-                //plugin.sendChatMessage("3", false);
                 return SWAP_DROP;
             }
 
-            // Deprioritize all high-priority left click options that aren't the one we want
+            // Deprioritize all other high-priority left click options that aren't the one we want
             if (itemMenuOptionBlacklist.contains(opt) && !defaultLeftClick.getMenuOptionWhitelist().contains(opt)
                     && defaultLeftClick != LootOption.DROP) {
                 e.setDeprioritized(true);
@@ -201,13 +214,8 @@ public class LeftClickManager {
                 }
             }
         }
+        // Other NPCs will frequently get in the way of our salvaging - suppress those options too:
+        // Selina-Kebbit Monkfish (15157) - Merchant Shipwrecks southwest of Brittle
+        deprioNPCMap.put(NpcID.SAILING_CHARTING_MERMAID_GUIDE_3, true);
     }
-
-    public void buildNPCsInTheWayList() {
-        // Some NPCs
-        npcsInTheWay.add(
-                NpcID.SAILING_CHARTING_MERMAID_GUIDE_3 //  Selina-Kebbit Monkfish (15157) - Merchant Shipwrecks sw of Brittle
-        );
-    }
-
 }

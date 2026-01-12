@@ -37,6 +37,8 @@ public class Boat {
     private int cargoHoldId = -1;
     @Getter
     private int cargoHoldCapacity = 0;
+    @Getter @Setter
+    private int itemsInHold = -1;
     //endregion
 
     //region Salvaging Hooks
@@ -233,5 +235,15 @@ public class Boat {
             idToHookType.put(hookType.getSloopId1(), hookType);
             idToHookType.put(hookType.getSloopId2(), hookType);
         }
+    }
+
+    public void incrementItems() {
+        if (itemsInHold > -1) {
+            setItemsInHold(1 + getItemsInHold());
+        }
+    }
+
+    public void setCargoQuantity(int newQty) {
+        setItemsInHold(newQty);
     }
 }

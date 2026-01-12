@@ -22,15 +22,13 @@ public class SalvagingHelperObjectOverlay extends Overlay {
     private final Client client;
     private final SalvagingHelperPlugin plugin;
     private final ModelOutlineRenderer outlineRenderer;
-    private SalvagingHelperConfig config;
-    private List<GameObject> gameObjectSet = new ArrayList<>();
-    //private List<NPC> npcObjectSet = new ArrayList<>();
-    //private Instant lastRebuildTimestamp = Instant.now().minusSeconds(100);
-    //private final long cooldownInSeconds = 2;
+    private final SalvagingHelperConfig config;
+    //private List<GameObject> gameObjectSet = new ArrayList<>();
     private ConcurrentHashMap<GameObject, Color> gameObjectsToHighlight = new ConcurrentHashMap<>();
     private ConcurrentHashMap<NPC, Color> npcsToHighlight = new ConcurrentHashMap<>();
     private final int hookRenderRadius = 2500;
     public final int salvageRadius = 1150;
+    private Boolean renderCargoOverlayText = true;
 
     @Inject
     private SalvagingHelperObjectOverlay(Client client, SalvagingHelperPlugin plugin, SalvagingHelperConfig config, ModelOutlineRenderer outlineRenderer)
@@ -44,16 +42,16 @@ public class SalvagingHelperObjectOverlay extends Overlay {
         setPriority(PRIORITY_HIGH);
     }
 
-    public void buildEnvObjects(SalvagingHelperPlugin plugin, Client client, Player player) {
+/*    public void buildEnvObjects(SalvagingHelperPlugin plugin, Client client, Player player) {
 
         // Don't rebuild too often - final cooldown length TBD
         // Need a grace period for login moment/startup as many objects stream in
-/*        long timeSinceRebuild = Duration.between(lastRebuildTimestamp, Instant.now()).getSeconds();
+        long timeSinceRebuild = Duration.between(lastRebuildTimestamp, Instant.now()).getSeconds();
         long timeSinceStart = Duration.between(plugin.startTime, Instant.now()).getSeconds();
         plugin.sendChatMessage("Time since rebuild: "+timeSinceRebuild+" seconds");
         if (timeSinceRebuild < cooldownInSeconds && timeSinceStart > 5) {
             return;
-        }*/
+        }
 
         // Update the object and npc sets all at once later to prevent NullPointerException when
         // renderer tries to read them
@@ -101,7 +99,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
         } else {
             gameObjectSet.remove(object);
         }
-    }
+    }*/
 
     // Get this tick's object-color pairs from ActionHandler
     @SuppressWarnings("unchecked")
@@ -125,16 +123,17 @@ public class SalvagingHelperObjectOverlay extends Overlay {
 
         if (!plugin.onBoat) { return null; }
 
+        Boat b = plugin.boat;
         graphics.setFont(FontManager.getRunescapeFont());
-        WorldEntity boatEntity = plugin.boat.getBoatEntity();
+        WorldEntity boatEntity = b.getBoatEntity();
 
-        // game objects (facilities)
+
+        // game objects - facilities
         for (GameObject obj : gameObjectsToHighlight.keySet()) {
             if (obj == null || gameObjectsToHighlight.get(obj)==null) { continue; } // I LOVE JAVA!!!!!
             try {
                 outlineRenderer.drawOutline(obj, 3, gameObjectsToHighlight.getOrDefault(obj, Color.BLACK), 5);
             } catch (NullPointerException e) {
-
                 if (config.debugModeEnabled() && config.showObjectLoads()) {
                     plugin.sendChatMessage("Error rendering overlay on "+client.getObjectDefinition(obj.getId()).getName()
                             +" ("+obj.getId()+") at ("+obj.getLocalLocation().getX()+", "+obj.getLocalLocation().getY()+"). Deleting.", false);
@@ -145,6 +144,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             }
         }
 
+        // TODO - does this not ever get populated? wtf?
         // crewmates
         for (NPC npc : npcsToHighlight.keySet()) {
             if (npc == null || npcsToHighlight.get(npc)==null) { continue; }
@@ -153,12 +153,8 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             } catch (NullPointerException e) {
                 plugin.sendChatMessage("Error rendering overlay on "+npc.getName()+" ["+npc.getId()+"] at "
                         +npc.getLocalLocation().toString(), false);
-                //plugin.actionHandler.deleteNPC(npc);
             }
         }
-
-        // invisible, telepathic, sentient boat worldentity
-        LocalPoint local = boatEntity.getLocalLocation();
 
         // shipwrecks
         LocalPoint player = boatEntity.transformToMainWorld(client.getLocalPlayer().getLocalLocation());
@@ -168,7 +164,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             if (player.distanceTo(wp) < renderThreshold) {
                 drawShipwreckRange(graphics, client, salvageRadius, wp, new Color(129, 255, 148));
                 if (config.debugModeEnabled() && config.showObjectOverlays()) {
-                    renderText(graphics, plugin, wp, wreck.getId()+": (x="+wp.getX()+", y="+wp.getY()+")  A: "+plugin.actionHandler.getObjectAnimation(wreck), Color.MAGENTA, 0);
+                    renderText(graphics, wp, wreck.getId()+": (x="+wp.getX()+", y="+wp.getY()+")  A: "+plugin.actionHandler.getObjectAnimation(wreck), Color.MAGENTA, 0);
                 }
             }
         }
@@ -177,17 +173,26 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             if (player.distanceTo(wp) < renderThreshold) {
                 drawShipwreckRange(graphics, client, salvageRadius, wp, new Color(255, 172, 172, 128));
                 if (config.debugModeEnabled() && config.showObjectOverlays()) {
-                    renderText(graphics, plugin, wp, wreck.getId()+": (x="+wp.getX()+", y="+wp.getY()+")  A: "+plugin.actionHandler.getObjectAnimation(wreck), new Color(255, 172, 172, 128), 0);
+                    renderText(graphics, wp, wreck.getId()+": (x="+wp.getX()+", y="+wp.getY()+")  A: "+plugin.actionHandler.getObjectAnimation(wreck), new Color(255, 172, 172, 128), 0);
                 }
             }
         }
 
         // Salvaging hook underlays
         int w = 8, h = 8;
-        drawHookOverlay(graphics, plugin.boat.getHookPort(), boatEntity, w, h);
-        drawHookOverlay(graphics, plugin.boat.getHookStarboard(), boatEntity, w, h);
+        drawHookOverlay(graphics, b.getHookPort(), boatEntity, w, h);
+        drawHookOverlay(graphics, b.getHookStarboard(), boatEntity, w, h);
 
-        // crystal extractor
+        // cargo hold
+        if (config.drawCargoContents() && renderCargoOverlayText && b.getCargoHold() != null) {
+            GameObject cargoHold = b.getCargoHold();
+            int items = b.getItemsInHold();
+            String str = (items>0) ? items + " / " + b.getCargoHoldCapacity() : "?";
+            Point p = Perspective.getCanvasTextLocation(client, graphics, boatEntity.transformToMainWorld(cargoHold.getLocalLocation()), str, 1);
+            OverlayUtil.renderTextLocation(graphics, p, str,
+                    (items==b.getCargoHoldCapacity()) ? Color.RED : config.cargoHoldColor());
+        }
+
 
 
         return null;
@@ -211,7 +216,9 @@ public class SalvagingHelperObjectOverlay extends Overlay {
         //double a=1.00005507808;
         double b = 0.55342925736;
         //double c=0.99873327689;
-        // a & c don't make much of a difference, so we'll exclude them for performance
+        // a & c don't make much of a difference, so we'll exclude them for a teeny bit of performance
+
+        if (!config.drawShipwreckRadius()){ return; }
 
         graphics.setColor(color);
 
@@ -261,8 +268,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
         }
     }
 
-    public void renderText(Graphics2D graphics, SalvagingHelperPlugin plugin, LocalPoint local, String textToDraw, Color color, int zOffset) {
-        // We're inheriting color from parent context, so make sure to set it before calling this
+    public void renderText(Graphics2D graphics, LocalPoint local, String textToDraw, Color color, int zOffset) {
         if (!plugin.debug) { return; }
         Point p = Perspective.getCanvasTextLocation(plugin.getClient(), graphics, local, textToDraw, zOffset);
         if (p != null) {
@@ -272,6 +278,11 @@ public class SalvagingHelperObjectOverlay extends Overlay {
     }
 
     public void drawHookOverlay(Graphics2D graphics, GameObject hook, WorldEntity boatEntity, int w, int h) {
+
+        if (!config.drawHookLocation()){
+            return;
+        }
+
         if (hook != null && (hook.getWorldView()==boatEntity.getWorldView())) { // Java is a Perfect Language with No Flaws :)
             LocalPoint objWE = boatEntity.transformToMainWorld(hook.getLocalLocation());
             Point hook1Center = Perspective.localToCanvas(plugin.getClient(), objWE, 0, 0);
@@ -285,6 +296,14 @@ public class SalvagingHelperObjectOverlay extends Overlay {
                 }
             }
         }
+    }
+    
+    public void disableCargoTracking() {
+        renderCargoOverlayText = false;
+    }
+
+    public void enableCargoTracking() {
+        renderCargoOverlayText = true;
     }
 
 

@@ -6,9 +6,9 @@ import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.Menu;
 import net.runelite.api.events.*;
 import net.runelite.api.gameval.VarbitID;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -28,6 +28,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import com.salvaginghelper.Crewmate.Activity;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -39,7 +40,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Slf4j
 @PluginDescriptor(
 		name = "Salvaging Helper",
-		description = "Utilities and QOL updates to help you train Sailing",
+		description = "Comprehensive suite of utilities to streamline salvaging",
 		tags = {
 				"sailing",
 				"salvaging",
@@ -47,7 +48,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 				"notification",
 				"alert",
 				"tracker",
-				"sort loot"
+				"sort loot",
+				"overlay",
+				"radius"
 		}
 )
 public class SalvagingHelperPlugin extends Plugin
@@ -63,7 +66,7 @@ public class SalvagingHelperPlugin extends Plugin
 			60473, 60475, 60477, 60479));
 	public final static ArrayList<Integer> salvageItemIds = new ArrayList<>(List.of(32847, 32849, 32851, 32853, 32855,
 			32857, 32859, 32861));
-	public final static ArrayList<Integer> cargoHoldIds = Boat.HoldType.getAllIds();
+	//public final static ArrayList<Integer> cargoHoldIds = Boat.HoldType.getAllIds();
 	public ArrayList<NPC> enemyCrewmates = new ArrayList<>();
 
 	// Status variables about one's current voyage
@@ -79,8 +82,8 @@ public class SalvagingHelperPlugin extends Plugin
 	public ActionHandler actionHandler;
 	public ActionHandler.Instruction directions;
 	private NavigationButton navigationButton;
-	private int playerAtFacility=-1;
-	public int crewmateCount=0;
+	private int playerAtFacility = -1;
+	public int crewmateCount = 0;
 	public Boat boat = new Boat(this);
 
 	// Player specific variables
@@ -155,7 +158,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 		// Concept managers
 		lootManager = new LootManager(this, config, configManager);
-		actionHandler = new ActionHandler(this, config, client, lootManager, activeCrewmates, objectOverlay, boat);
+		actionHandler = new ActionHandler(this, config, client, lootManager, activeCrewmates, objectOverlay, boat, configManager);
 		leftClickManager = new LeftClickManager(this, config, client, menuManager, lootManager, actionHandler);
 
 		// UI
@@ -195,6 +198,7 @@ public class SalvagingHelperPlugin extends Plugin
 			chatMessageManager.queue(
 					QueuedMessage.builder()
 							.type(ChatMessageType.CONSOLE)
+							//.type(ChatMessageType.CHALREQ_CLANCHAT)
 							.runeLiteFormattedMessage(message)
 							.build());
 		}
@@ -218,26 +222,31 @@ public class SalvagingHelperPlugin extends Plugin
 		// Manually poll animation state of particular objects that transmog instead of triggering event handlers
 		GameObject extractor = boat.getCrystalExtractor();
 		if (extractor != null) {
-			switch (actionHandler.getObjectAnimation(extractor)) {
-				case 13174:
-					actionHandler.objectHighlightMap.put(extractor, Color.RED);
-					boat.setExtractorAnimation(13174);
-					break;
-				case 13177:
-					actionHandler.objectHighlightMap.put(extractor, Color.GREEN);
-					if (boat.getExtractorAnimation() != 13177) {
-						boat.setExtractorAnimation(13177);
-						sendExtractorNotification();
-					}
-					break;
-				case 13175:
-					actionHandler.objectHighlightMap.put(extractor, new Color(0, 0, 0, 0));
-					boat.setExtractorAnimation(13175);
-					break;
-				default:
-					sendChatMessage("Error with crystal extractor animation: "+actionHandler.getObjectAnimation(extractor), false);
+			if (config.extractorAlertsEnabled()) {
+				switch (actionHandler.getObjectAnimation(extractor)) {
+					case 13174:
+						actionHandler.objectHighlightMap.put(extractor, Color.RED);
+						boat.setExtractorAnimation(13174);
+						break;
+					case 13177:
+						actionHandler.objectHighlightMap.put(extractor, Color.GREEN);
+						if (boat.getExtractorAnimation() != 13177) {
+							boat.setExtractorAnimation(13177);
+							sendExtractorNotification();
+						}
+						break;
+					case 13175:
+						actionHandler.objectHighlightMap.put(extractor, new Color(0, 0, 0, 0));
+						boat.setExtractorAnimation(13175);
+						break;
+					default:
+						sendChatMessage("Error with crystal extractor animation: "+actionHandler.getObjectAnimation(extractor), false);
+				}
+			} else {
+				// eventually should hook into ConfigChanged to clear existing highlights when the setting
+				// is toggled, but this is fine for now
+				actionHandler.objectHighlightMap.put(extractor, new Color(0, 0, 0, 0));
 			}
-
 		}
 
 		// Main logic
@@ -502,20 +511,13 @@ public class SalvagingHelperPlugin extends Plugin
 			case 33732: // cargo hold
 				actionHandler.cargoHoldNeedsUpdate = true;
 				actionHandler.setCargoHold(container);
+				boat.setCargoQuantity(container.count());
 				return;
 			case 33733: // cargo hold also...? huh?
 				return;
 			default:
 				return;
 		}
-	}
-
-	@Subscribe
-	private void onMenuOpened(MenuOpened event) {
-		//for (MenuEntry e : event.getMenuEntries()) {
-			//leftClickManager.processOneEntry(e);
-			//sendChatMessage(e.toString(), false);
-		//}
 	}
 
 	@Subscribe
@@ -553,19 +555,20 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 	}
 
-	// TODO - parse status of item containers
+	// TODO - parse status of item containers?
 	@Subscribe
 	private void onChatMessage(final ChatMessage event) {
 		String m = event.getMessage();
-		if (m.contains("Your crewmate on the salvaging hook cannot salvage as the cargo hold is full.")
-				) {
+		if (m.contains("Your crewmate on the salvaging hook cannot salvage as the cargo hold is full.")) {
 			actionHandler.cargoHoldFull = true;
 		}
-		if (m.contains("have enough space for the herbs.")
-		) {
+		if (m.contains("have enough space for the herbs.")) {
 			actionHandler.isHerbSackFull = true;
 		}
-
+		if (m.contains("You gain some experience by watching your crew work.")) {
+			// TODO - add tracking here
+			boat.incrementItems();
+		}
 	}
 
 	@Subscribe
@@ -584,7 +587,17 @@ public class SalvagingHelperPlugin extends Plugin
 		if (event.getGroupId() == 943) { // Cargo hold popup
 			if (boat.getCargoHold() != null) {
 				actionHandler.cargoHoldFull = false;
-				actionHandler.objectHighlightMap.put(boat.getCargoHold(), actionHandler.clear);
+				actionHandler.highlight(boat.getCargoHold(), actionHandler.clear);
+				objectOverlay.disableCargoTracking();
+				ItemContainer itemContainer = client.getItemContainer(event.getGroupId());
+				if (itemContainer != null) {
+					sendChatMessage(itemContainer.toString(), true);
+					boat.setCargoQuantity(itemContainer.count());
+				}
+				Widget w = client.getSelectedWidget();
+				if (w != null) {
+					sendChatMessage(w.toString(), true);
+				}
 			}
 		}
 	}
@@ -593,6 +606,49 @@ public class SalvagingHelperPlugin extends Plugin
 	private void onWidgetClosed(WidgetClosed event) {
 		if (event.getGroupId() == 943) { // Cargo hold popup
 			actionHandler.cargoHoldFull = false;
+			objectOverlay.enableCargoTracking();
+			ItemContainer itemContainer = client.getItemContainer(event.getGroupId());
+			if (itemContainer != null) {
+				sendChatMessage(itemContainer.toString(), true);
+				boat.setCargoQuantity(itemContainer.count());
+			}
+			Widget w = client.getSelectedWidget();
+			if (w != null) {
+				sendChatMessage(w.toString(), true);
+			}
+
+		}
+	}
+
+	@Subscribe
+	private void onStatChanged(StatChanged change)  {
+		if (change.getSkill() == Skill.SAILING && onBoat) {
+			int boostedLevel = change.getBoostedLevel();
+			int level = change.getLevel();
+			// TODO - track and manage
+			// if level is fine, set variable "needs to boost" false, and stop highlighting boost items
+			// fire notification and set a variable "needs to boost" if current lvl < lvl + configBoostAmt
+			// in actionHandler, highlight kegs, beer glasses, boost items...
+		}
+	}
+
+	@Subscribe
+	private void onOverheadTextChanged(OverheadTextChanged change)  {
+		if (onBoat && !change.getOverheadText().isEmpty()) {
+			if (change.getActor() instanceof NPC) {
+				NPC npc = (NPC) change.getActor();
+				if (Crewmate.isNPCSailingCrewmate(npc)) {
+					if (activeCrewmates.stream().anyMatch(j -> j.getCrewmateNpc().equals(npc))) {
+						if (config.hideCrewmateOverhead()) {
+							npc.setOverheadText("");
+							npc.setOverheadCycle(0);
+						}
+					} else if (config.hideOthersCrewmateOverhead()) {
+						npc.setOverheadText("");
+						npc.setOverheadCycle(0);
+					}
+				}
+			}
 		}
 	}
     //endregion
@@ -616,7 +672,7 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 	}
 
-	public void sendIdleNotification() {
+	public void sendIdleNotification(String message) {
 		if (config.idleAlertsEnabled()) {
 			Notification notif = new Notification(true, true, true, true,
 					config.idleTrayType(),
@@ -628,7 +684,7 @@ public class SalvagingHelperPlugin extends Plugin
 					config.idleScreenFlashType(),
 					config.screenFlashColor(),
 					config.idleAlertWhileFocused());
-			notifier.notify(notif, "Move to a new shipwreck!");
+			notifier.notify(notif, message);
 		}
 	}
     //endregion
@@ -643,7 +699,7 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 		// Add
 		else if (newCrewmemberListId != 0) {
-			activeCrewmates.set(slot - 1, new Crewmate(this, slot - 1, newCrewmemberListId, onBoat, client, 0));
+			activeCrewmates.set(slot - 1, new Crewmate(this, config, slot - 1, newCrewmemberListId, onBoat, client, 0));
 		}
 	}
 

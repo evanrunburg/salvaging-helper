@@ -37,8 +37,9 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
     public void renderItemOverlay(Graphics2D graphics, int itemId, WidgetItem widgetItem)
     {
         if (!config.enableLootOverlays() || !plugin.onBoat) { return; }
-        // Canonicalize for base item ID to match against our lists, but remember to
-        // render against actual item ID later for correct underlay
+
+        // Canonicalize for base item ID to match against our lists, but remember to render against actual
+        // item ID for correct underlay
         int finalItemId = itemManager.canonicalize(itemId);
         Color color = plugin.lootManager.toLootColor(finalItemId);
         if (color==null) {
