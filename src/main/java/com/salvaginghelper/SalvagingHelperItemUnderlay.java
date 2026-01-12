@@ -14,7 +14,6 @@ import java.util.List;
 
 class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
 
-    //private final Client client;
     private final SalvagingHelperPlugin plugin;
     private final SalvagingHelperConfig config;
     private final ItemManager itemManager;
@@ -25,12 +24,14 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
         this.plugin = plugin;
         this.config = config;
 
-        if (config.overlayOnCargoHold()) {
-            showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE,
-                    InterfaceID.SAILING_BOAT_CARGOHOLD);
-        } else {
-            showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE);
-        }
+//        if (config.overlayOnCargoHold()) {
+//            showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE,
+//                    InterfaceID.SAILING_BOAT_CARGOHOLD);
+//        } else {
+//            showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE);
+//        }
+
+        showOnInterfaces(InterfaceID.INVENTORY, InterfaceID.SAILING_BOAT_CARGOHOLD_SIDE);
     }
 
     @Override
