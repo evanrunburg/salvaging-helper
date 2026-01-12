@@ -61,12 +61,11 @@ public class LeftClickManager {
                 needSwap = k;
             }
         }
+
         if (needSwap == SWAP_DROP || needSwap == SWAP_FILL) {
             MenuEntry[] newMenu = swapEntryToTop(menuEntries, dropIndex);
             m.setMenuEntries(newMenu);
-
         } else if (needSwap == SWAP_USE) {
-
             int useIndex = getMenuOptionIndex(menuEntries, "Use");
             if (useIndex > 0) {
                 MenuEntry[] newMenu = swapEntryToTop(menuEntries, useIndex);
@@ -191,7 +190,7 @@ public class LeftClickManager {
 
             // if we failed every check above, we just want Use
             if (itemMenuOptionBlacklist.contains(opt) && !defaultLeftClick.getMenuOptionWhitelist().contains(opt)
-                    && defaultLeftClick != LootOption.DROP) {
+                    && defaultLeftClick != LootOption.DROP && defaultLeftClick != LootOption.CONTAINER) {
                 return SWAP_USE;
             }
         }
@@ -200,7 +199,9 @@ public class LeftClickManager {
 
     private MenuEntry[] swapEntryToTop(MenuEntry[] menuEntries, int indexToSwap) {
         // "Cancel" and "Examine" will always be menu entries; will use?
-        if (indexToSwap == menuEntries.length - 1 || menuEntries.length < 3) { return null; }
+        if (indexToSwap == menuEntries.length - 1 || menuEntries.length < 3) {
+            //plugin.sendChatMessage("Returning null from swapEntryToTop because length was "+menuEntries.length, true);
+            return menuEntries; }
 
         MenuEntry[] tempArray = new MenuEntry[menuEntries.length];
         for (int j=0; j<menuEntries.length; j++) {

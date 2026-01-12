@@ -139,6 +139,7 @@ public class SalvagingHelperPlugin extends Plugin
 	protected void startUp() throws Exception {
 		debug = config.debugModeEnabled();
 		boat.setActionHandler(actionHandler);
+		// TODO - why is this throwing a nullpointerexception on startup?
 		clientThread.invokeLater( () -> {
 			onBoat = client.getVarbitValue(19136) > 0;
 		});
@@ -522,20 +523,9 @@ public class SalvagingHelperPlugin extends Plugin
 	}
 
 	@Subscribe
-	private void onMenuOptionClicked(MenuOptionClicked event) {
-/*		Menu m = client.getMenu();
-		if (m.getMenuEntries().length!=0) {
-			for (MenuEntry e : m.getMenuEntries()) {
-				sendChatMessage(e.toString(), true);
-			}
-		}*/
-	}
-
-	@Subscribe
 	private void onClientTick(ClientTick tick) {
 		if (onBoat && !client.isMenuOpen() && client.getGameState()==GameState.LOGGED_IN) {
 			leftClickManager.process(client.getMenu());
-			//sendChatMessage(client.getMenu().toString(), true);
 		}
 	}
 
