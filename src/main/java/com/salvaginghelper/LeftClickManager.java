@@ -66,6 +66,7 @@ public class LeftClickManager {
             m.setMenuEntries(newMenu);
 
         } else if (needSwap == SWAP_USE) {
+
             int useIndex = getMenuOptionIndex(menuEntries, "Use");
             if (useIndex > 0) {
                 MenuEntry[] newMenu = swapEntryToTop(menuEntries, useIndex);
@@ -182,18 +183,15 @@ public class LeftClickManager {
 
             // DROP
             if (defaultLeftClick.getMenuOptionWhitelist().contains(opt) && defaultLeftClick==LootOption.DROP) {
-                // Drop option's default menu action type causes it to be auto-deprioritized, so swap it out
+                // Drop option's default (CC_OP_LOW_PRIORITY) causes it to be auto-deprioritized, so swap it out
                 e.setType(MenuAction.CC_OP);
                 e.setDeprioritized(false);
                 return SWAP_DROP;
             }
 
-            // Deprioritize all other high-priority left click options that aren't the one we want - if we failed
-            // every check above, we probably just want Use
+            // if we failed every check above, we just want Use
             if (itemMenuOptionBlacklist.contains(opt) && !defaultLeftClick.getMenuOptionWhitelist().contains(opt)
                     && defaultLeftClick != LootOption.DROP) {
-                //e.setDeprioritized(true);
-                e.setType(MenuAction.CC_OP_LOW_PRIORITY);
                 return SWAP_USE;
             }
         }

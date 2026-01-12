@@ -523,7 +523,12 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onMenuOptionClicked(MenuOptionClicked event) {
-
+/*		Menu m = client.getMenu();
+		if (m.getMenuEntries().length!=0) {
+			for (MenuEntry e : m.getMenuEntries()) {
+				sendChatMessage(e.toString(), true);
+			}
+		}*/
 	}
 
 	@Subscribe
