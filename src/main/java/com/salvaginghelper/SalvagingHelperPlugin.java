@@ -6,6 +6,7 @@ import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.Menu;
 import net.runelite.api.events.*;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
@@ -522,7 +523,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onMenuOptionClicked(MenuOptionClicked event) {
-		//sendChatMessage(event.toString(), false);
+
 	}
 
 	@Subscribe

@@ -361,13 +361,14 @@ public class SalvagingHelperPanel extends PluginPanel {
                     }
                 }
             }
-            plugin.sendChatMessage("|Player|"+p.getWorldView().getId()+"|"+p.getLocalLocation().toString()+
-                    "|"+wE.transformToMainWorld(p.getLocalLocation()).toString(), false);
-            plugin.sendChatMessage("|BoatEntity|"+wE.getWorldView().getId()+"|"+wE.getLocalLocation().toString()+
-                    "|"+wE.transformToMainWorld(wE.getLocalLocation()).toString(), false);
-            plugin.sendChatMessage("|Extractor (stored)|"+ex.getWorldView().getId()+"|"+ex.getLocalLocation().toString()+
-                    "|"+wE.transformToMainWorld(ex.getLocalLocation()).toString(), false);
-
+            clientThread.invoke(() -> {
+                plugin.sendChatMessage("|Player|"+p.getWorldView().getId()+"|"+p.getLocalLocation().toString()+
+                        "|"+wE.transformToMainWorld(p.getLocalLocation()).toString(), false);
+                plugin.sendChatMessage("|BoatEntity|"+wE.getWorldView().getId()+"|"+wE.getLocalLocation().toString()+
+                        "|"+wE.transformToMainWorld(wE.getLocalLocation()).toString(), false);
+                plugin.sendChatMessage("|Extractor (stored)|"+ex.getWorldView().getId()+"|"+ex.getLocalLocation().toString()+
+                        "|"+wE.transformToMainWorld(ex.getLocalLocation()).toString(), false);
+            });
         });
         debugContainer.add(extractorReloadInfo);
 

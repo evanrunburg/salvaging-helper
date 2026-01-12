@@ -72,7 +72,7 @@ public class Boat {
     @Getter @Setter
     private GameObject salvagingStation;
     @Getter
-    private GameObject[] kegs;
+    private ArrayList<GameObject> kegs = new ArrayList<>();
     @Getter
     private GameObject helm;
     @Getter

@@ -21,6 +21,7 @@ public class LeftClickManager {
 
     private final int SWAP_DROP = 1;
     private final int SWAP_USE = 2;
+    private final int SWAP_FILL = 3;
 
     private final ArrayList<String> boatOptionsToDeprio = new ArrayList<>(Arrays.asList("Set", "Check", "Empty",
             "Operate", "Check-ammunition", "Reset-ammunition", "Un-set", "Navigate", "Escape"));
@@ -47,20 +48,23 @@ public class LeftClickManager {
         MenuEntry[] menuEntries = m.getMenuEntries();
         int needSwap = 0;
         int dropIndex = -1;
+
+        // Incremental loop instead of colon-for-loop for indices
+        // Distinguish FILL and DROP for future-proofing reasons, even though we currently treat them identically
         for (int i=0; i<menuEntries.length; i++) {
             int k = processOneEntry(menuEntries[i]);
-            if (k == SWAP_DROP) {
+            if (k == SWAP_DROP || k == SWAP_FILL) {
                 dropIndex = i;
-                needSwap = SWAP_DROP;
+                needSwap = k;
             }
             else if (k == SWAP_USE) {
-                needSwap = SWAP_USE;
+                needSwap = k;
             }
         }
-        if (needSwap == SWAP_DROP) {
+        if (needSwap == SWAP_DROP || needSwap == SWAP_FILL) {
             MenuEntry[] newMenu = swapEntryToTop(menuEntries, dropIndex);
             m.setMenuEntries(newMenu);
-            return;
+
         } else if (needSwap == SWAP_USE) {
             int useIndex = getMenuOptionIndex(menuEntries, "Use");
             if (useIndex > 0) {
@@ -69,7 +73,7 @@ public class LeftClickManager {
             }
         }
 
-        // TODO - shift click configure
+        // TODO - shift click configure?
     }
 
     public int processOneEntry(MenuEntry e) {
@@ -84,12 +88,14 @@ public class LeftClickManager {
                 }
             }
         }
+
         // Shipwrecks
         else if (opt.equals("Inspect") && SalvagingHelperPlugin.activeShipwreckIds.contains(idf)) {
             if (config.hideShipwreckInspect()) {
                 e.setDeprioritized(true);
             }
         }
+
         // Crewmates
         else if (opt.equals("Command")) {
             if (e.getNpc()!=null) {
@@ -99,9 +105,9 @@ public class LeftClickManager {
                 }
             }
         }
+
         // Other NPCs
         else if (opt.equals("Talk-to") || opt.equals("Dive")) {
-            //plugin.sendChatMessage("ping on npc id "+e.getNpc().getId(), false);
             if (e.getNpc()!=null) {
                 int npcId = e.getNpc().getId();
                 if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId) && config.hideNpcInteract()) {
@@ -109,16 +115,23 @@ public class LeftClickManager {
                 }
             }
         }
+
         // Ground items
         else if (e.getType()==MenuAction.GROUND_ITEM_THIRD_OPTION && config.hideGroundItems()){
             e.setDeprioritized(true);
         }
+
         // Inventory items
         else if (e.getItemId()>0 && e.getParam1()==9764864 && config.swapInvItemOptions()) {
-            int id = e.getItemId();
-            // TODO - modify to allow containers to be handled - swap fill on containers
 
-            // Support drop-all-salvage even if it's rancid
+            int id = e.getItemId();
+
+            // Don't touch what isn't ours
+            if (e.getType()==MenuAction.RUNELITE) {
+                return 0;
+            }
+
+            // Salvage
             if (SalvagingHelperPlugin.salvageItemIds.contains(id)) {
                 if (config.dropAllSalvage() && "Drop".equals(opt)) {
                     e.setType(MenuAction.CC_OP);
@@ -129,16 +142,45 @@ public class LeftClickManager {
                 }
             }
 
-            if (lootManager.getLootItem(id)==null) {
+            // Loot containers
+            LootContainer c = lootManager.getContainer(id);
+            if (c != null) {
+                if (lootManager.isContainerEnabled(c)) {
+                    if (opt.equals("View") || opt.equals("Open") || opt.equals("Close") || opt.equals("Empty")
+                            || opt.equals("Check")) {
+                        // You might be thinking, "Let's set these menu entries to deprioritized here, so they show up
+                        // later down on the list." This is a trap. If you deprioritize an entry that the game wants
+                        // the item's left click to be, the game will create a *new* menu entry of its desired action
+                        // *after* we finish our modifications, and insert it at the top. Even worse, the game will SAY
+                        // in the top left corner of the client that the action it'll take when you click that item will
+                        // be the one you want. It will be lying to you, you will spend many moments of your fleeting
+                        // existence trying in vain to make this engine work in a reasonable way, and you will fail.
+                        return 0;
+                    } else {
+                        // Case 1 - can click the container to fill (everything except rune pouch)
+                        if (c.getHasLeftClickFill()) {
+                            if (opt.equals("Fill")) {
+                                return SWAP_FILL;
+                            } else {
+                                return 0;
+                            }
+                        } else {
+                            // Case 2 - cannot (only rune pouch)
+                            return SWAP_USE;
+                        }
+                    }
+                }
                 return 0;
             }
-            // Don't touch what isn't ours
-            if (e.getType()==MenuAction.RUNELITE) {
+
+            // Everything past here should be loot items
+            if (lootManager.getLootItem(id)==null) {
                 return 0;
             }
 
             LootOption defaultLeftClick = lootManager.getLootItem(id).getLootCategory();
 
+            // DROP
             if (defaultLeftClick.getMenuOptionWhitelist().contains(opt) && defaultLeftClick==LootOption.DROP) {
                 // Drop option's default menu action type causes it to be auto-deprioritized, so swap it out
                 e.setType(MenuAction.CC_OP);
@@ -146,10 +188,11 @@ public class LeftClickManager {
                 return SWAP_DROP;
             }
 
-            // Deprioritize all other high-priority left click options that aren't the one we want
+            // Deprioritize all other high-priority left click options that aren't the one we want - if we failed
+            // every check above, we probably just want Use
             if (itemMenuOptionBlacklist.contains(opt) && !defaultLeftClick.getMenuOptionWhitelist().contains(opt)
                     && defaultLeftClick != LootOption.DROP) {
-                e.setDeprioritized(true);
+                //e.setDeprioritized(true);
                 e.setType(MenuAction.CC_OP_LOW_PRIORITY);
                 return SWAP_USE;
             }

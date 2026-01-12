@@ -104,7 +104,6 @@ public class LootManager {
         this.config = config;
         this.configManager = configManager;
         init();
-        // TODO: construct left click map
     }
 
     // Produce and cache maps here to reduce per-frame overhead and simplify reloading on config change
@@ -129,8 +128,8 @@ public class LootManager {
     }
 
     private void initializeItemDefaults() {
-        // Import per-item properties and defaults from a text file to save space
-        // line format: itemID,defaultLootOption,canContainer,canConsume,canEquip,canProcess,canCargoHold,name
+        // Import per-item properties and defaults from a text file to save space.
+        // Line format: itemID,defaultLootOption,canContainer,canConsume,canEquip,canProcess,canCargoHold,name
         // (Manually specifying name despite obvious issues to easily allow replacements of overly-long
         // names with abbreviations, e.g. Dragon cannon barrel -> D. cannon barrel)
         try (BufferedReader br = new BufferedReader(new FileReader(ITEM_FILE_PATH))) {

@@ -6,8 +6,6 @@ import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.salvaginghelper.SalvagingHelperConfig;
-
 @RequiredArgsConstructor @Getter
 public enum LootContainer {
     LOG_BASKET("Log basket", List.of(28140, 28142, 18143, 28145), "logBasketEnabled", true,
@@ -42,6 +40,4 @@ public enum LootContainer {
     private final String configKey;
     private final Boolean hasLeftClickFill;
     private final ArrayList<Integer> eligibleItems;
-
-    //private final Runnable containerEnabled;
 }
