@@ -8,9 +8,6 @@ import net.runelite.client.ui.overlay.WidgetItemOverlay;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
 
@@ -43,9 +40,7 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
         // item ID for correct underlay
         int finalItemId = itemManager.canonicalize(itemId);
         Color color = plugin.lootManager.toLootColor(finalItemId);
-        if (color==null) {
-            return;
-        } else {
+        if (color!=null) {
             // While cargo hold is open, only render depositable items
             if (widgetItem.getWidget().getId()!=61865985 | color.equals(config.cargoHoldColor()) ) {
                 Rectangle bounds = widgetItem.getCanvasBounds();

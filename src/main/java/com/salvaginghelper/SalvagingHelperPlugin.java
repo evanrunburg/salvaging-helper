@@ -756,7 +756,7 @@ public class SalvagingHelperPlugin extends Plugin
 	}
 
 	public <T> T getConfigByKey(String configKey, Type T) {
-		return configManager.getConfiguration("salvagingHelper", configKey, T.getClass());
+		return configManager.getConfiguration("salvagingHelper", configKey, T);
 	}
 
 

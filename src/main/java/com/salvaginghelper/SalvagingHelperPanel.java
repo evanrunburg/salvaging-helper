@@ -756,10 +756,19 @@ public class SalvagingHelperPanel extends PluginPanel {
     //endregion
 
     public void setItemCategory(int itemId, LootOption lootCategory) {
+
         LootItem lootItem = lootManager.lootItemMap.get(itemId);
-        if (itemId>0 && lootCategory!=null && lootCategory!=lootItem.getLootCategory()) {
+        LootOption oldCategory = lootItem.getLootCategory();
+
+        if (itemId>0 && lootCategory!=null && lootCategory!=oldCategory) {
             lootItem.updateLootCategory(lootCategory);
-            plugin.sendChatMessage("Item category for item "+itemId+" updated to "+lootCategory.toString(), false);
+
+            // Only update its current underlay if we weren't overriding it this frame
+            if (lootManager.toLootColor(itemId).equals(lootManager.lootOptionToColor.get(oldCategory))) {
+                lootManager.setColor(itemId, plugin.getConfigByKey(lootCategory.getColorConfigKey(), Color.class));
+            }
+
+            // Item might be dropped by multiple salvage types
             Collection<JComboBox<LootOption>> itemBoxes = itemToComboBox.get(itemId);
             for (JComboBox<LootOption> box : itemBoxes) {
                 if (box.getSelectedItem() != lootCategory) {

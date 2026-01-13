@@ -6,7 +6,6 @@ import net.runelite.client.config.ConfigManager;
 import com.salvaginghelper.LootManager.LootOption;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LootItem {
@@ -19,8 +18,6 @@ public class LootItem {
     private final ArrayList<LootOption> allowedOptions;
     @Getter
     private LootOption lootCategory;
-    //@Getter
-    //private Boolean isNameOverridden = false;
     @Getter
     private String name;
     @Getter
@@ -72,9 +69,4 @@ public class LootItem {
         LootOption savedCategory = configManager.getConfiguration(SalvagingHelperConfig.GROUP, "item_"+itemId, LootOption.class);
 
     }
-
-    public ConcurrentHashMap<Integer, LootItem> getMap() {
-        return itemIdMap;
-    }
-
 }
