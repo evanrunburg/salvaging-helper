@@ -166,6 +166,7 @@ public class ActionHandler {
         // Set up to perform the logic all at once cleanly
         processInventoryItems();
         processCargoHold();
+        SalvageMode mode = config.salvageMode();
         activeHooks = countHooks("Active");
         inactiveHooks = countHooks("Inactive");
         int hookCount = activeHooks + inactiveHooks;
@@ -174,7 +175,7 @@ public class ActionHandler {
 
         // Always evaluate these
         // Salvaging station
-        if (invHasSalvage) {
+        if (invHasSalvage && !config.dropAllSalvage()) {
             highlight(boat.getSalvagingStation(), Color.GREEN);
         } else {
             highlight(boat.getSalvagingStation(), clear);
@@ -186,16 +187,21 @@ public class ActionHandler {
             highlight(boat.getCargoHold(), config.cargoHoldColor());
         }
         // Ready to grab more salvage out of the cargo hold
-        if (!invHasSalvage && !containsDroppableLoot && !containsAlchLoot && !containsContainerableLoot && !containsConsumableLoot &&
-                    !containsEquippableLoot && !containsProcessableLoot && (plugin.playerCurrentActivity==Activity.SORTING_SALVAGE ||
+        if (!invHasSalvage && !containsDroppableLoot && !containsAlchLoot && !containsContainerableLoot &&
+                !containsConsumableLoot && !containsEquippableLoot && !containsProcessableLoot &&
+                (plugin.playerCurrentActivity==Activity.SORTING_SALVAGE ||
                     (plugin.playerCurrentActivity==Activity.EXTRACTING && plugin.playerLastActivity==Activity.SORTING_SALVAGE))) {
             highlight(boat.getCargoHold(), config.cargoHoldColor());
             //plugin.sendChatMessage("Highlighting cargo hold (Ready for More Salvage)", true);
             // TODO - add condition that there's enough salvage in the cargo hold?
         }
+
         if (cargoHoldFull) {
             highlight(boat.getCargoHold(), Color.RED);
             // TODO - fire idle notification?
+            if (mode != SalvageMode.SALVAGE_ONLY) {
+
+            }
         }
 
         // Needs to move to new spot?
@@ -738,6 +744,11 @@ public class ActionHandler {
                 highlight(itemId, clear);
             }
         }
+    }
+
+    public int msSinceInteract() {
+
+        return -1;
     }
 
 

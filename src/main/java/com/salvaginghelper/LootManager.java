@@ -12,13 +12,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LootManager {
 
-    private ConcurrentHashMap<Integer, Color> underlayColorMap;
+    public ConcurrentHashMap<Integer, Color> underlayColorMap;
     public ConcurrentHashMap<Integer, LootItem> lootItemMap;
     public ConcurrentHashMap<LootOption, Color> lootOptionToColor = new ConcurrentHashMap<>();
     private ConcurrentHashMap<Integer, LootContainer> toContainer = new ConcurrentHashMap<>();
@@ -57,36 +56,39 @@ public class LootManager {
 
     @RequiredArgsConstructor @Getter
     public enum SalvageType {
-        SMALL("Small Salvage", 15, ItemID.SAILING_SMALL_SHIPWRECK_SALVAGE, smallSalvageItems),
-        FISHY("Fishy Salvage", 26, ItemID.SAILING_FISHERMAN_SHIPWRECK_SALVAGE, fishySalvageItems),
-        BARRACUDA("Barracuda Salvage", 35, ItemID.SAILING_BARRACUDA_SHIPWRECK_SALVAGE, barracudaSalvageItems),
-        LARGE("Large Salvage", 53, ItemID.SAILING_LARGE_SHIPWRECK_SALVAGE, largeSalvageItems),
-        PLUNDERED("Plundered Salvage", 64, ItemID.SAILING_PIRATE_SHIPWRECK_SALVAGE, plunderedSalvageItems),
-        MARTIAL("Martial Salvage", 73, ItemID.SAILING_MERCENARY_SHIPWRECK_SALVAGE, martialSalvageItems),
-        FREMENNIK("Fremennik Salvage", 80, ItemID.SAILING_FREMENNIK_SHIPWRECK_SALVAGE, fremennikSalvageItems),
-        OPULENT("Opulent Salvage", 87, ItemID.SAILING_MERCHANT_SHIPWRECK_SALVAGE, opulentSalvageItems),
-        OTHER("Gem Drop Table and Other", 0, ItemID.SAPPHIRE, otherLootItems);
+        SMALL("Small Salvage", 15, ItemID.SAILING_SMALL_SHIPWRECK_SALVAGE, 10, 5.5, smallSalvageItems),
+        FISHY("Fishy Salvage", 26, ItemID.SAILING_FISHERMAN_SHIPWRECK_SALVAGE, 17, 9, fishySalvageItems),
+        BARRACUDA("Barracuda Salvage", 35, ItemID.SAILING_BARRACUDA_SHIPWRECK_SALVAGE, 31, 15.5, barracudaSalvageItems),
+        LARGE("Large Salvage", 53, ItemID.SAILING_LARGE_SHIPWRECK_SALVAGE, 48, 24, largeSalvageItems),
+        PLUNDERED("Plundered Salvage", 64, ItemID.SAILING_PIRATE_SHIPWRECK_SALVAGE, 76, 31.5, plunderedSalvageItems),
+        MARTIAL("Martial Salvage", 73, ItemID.SAILING_MERCENARY_SHIPWRECK_SALVAGE, 138, 63.5, martialSalvageItems),
+        FREMENNIK("Fremennik Salvage", 80, ItemID.SAILING_FREMENNIK_SHIPWRECK_SALVAGE, 162, 75, fremennikSalvageItems),
+        OPULENT("Opulent Salvage", 87, ItemID.SAILING_MERCHANT_SHIPWRECK_SALVAGE, 200, 95, opulentSalvageItems),
+        OTHER("Gem Drop Table and Other", 0, ItemID.SAPPHIRE, 999999, 999999, otherLootItems);
 
         private final String name;
         private final int levelReq;
         private final int itemId;
+        private final int baseXp;
+        private final double sortXp;
         private final int[] lootItems;
     }
 
     @RequiredArgsConstructor @Getter
     public enum LootOption { // Conditionals are Container, Consume, Equip, Process, Cargo_Hold
-        KEEP("Keep", new ArrayList<>(List.of("Use"))),
-        DROP("Drop", new ArrayList<>(Arrays.asList("Drop", "Destroy"))),
-        CONTAINER("Container", new ArrayList<>(List.of("Use"))),
-        ALCH("Alch", new ArrayList<>(List.of("Use"))),
-        CONSUME("Consume", new ArrayList<>(Arrays.asList("Use", "Drink", "Apply"))),
-        EQUIP("Equip", new ArrayList<>(Arrays.asList("Equip", "Wear", "Wield"))),
-        PROCESS("Process", new ArrayList<>(List.of("Use"))),
-        CARGO_HOLD("Cargo Hold", new ArrayList<>(List.of("Use"))), // Eligible items: https://oldschool.runescape.wiki/w/Cargo_hold
-        OTHER("Other", new ArrayList<>(List.of("Use")));
+        KEEP("Keep", new ArrayList<>(List.of("Use")), "keepColor"),
+        DROP("Drop", new ArrayList<>(Arrays.asList("Drop", "Destroy")), "dropColor"),
+        CONTAINER("Container", new ArrayList<>(List.of("Use")), "containerColor"),
+        ALCH("Alch", new ArrayList<>(List.of("Use")), "alchColor"),
+        CONSUME("Consume", new ArrayList<>(Arrays.asList("Use", "Drink", "Apply")), "consumeColor"),
+        EQUIP("Equip", new ArrayList<>(Arrays.asList("Equip", "Wear", "Wield")), "equipColor"),
+        PROCESS("Process", new ArrayList<>(List.of("Use")), "processColor"),
+        CARGO_HOLD("Cargo Hold", new ArrayList<>(List.of("Use")), "cargoHoldColor"), // Eligible items: https://oldschool.runescape.wiki/w/Cargo_hold
+        OTHER("Other", new ArrayList<>(List.of("Use")), "otherColor");
 
         private final String name;
         private final ArrayList<String> menuOptionWhitelist;
+        private final String colorConfigKey;
 
         @Override
         public String toString() { return name; }
@@ -106,7 +108,7 @@ public class LootManager {
         init();
     }
 
-    // Produce and cache maps here to reduce per-frame overhead and simplify reloading on config change
+    // Produce and cache maps now to reduce per-frame overhead and simplify reloading on config change
     public void init() {
         lootItemMap = new ConcurrentHashMap<>();
         underlayColorMap = new ConcurrentHashMap<>();

@@ -258,7 +258,6 @@ public class Crewmate {
         } else {
             return false;
         }
-
     }
     //</editor-fold>
 
@@ -299,6 +298,21 @@ public class Crewmate {
             }
         } else {
             return "Raft/skiff not yet implemented";
+        }
+    }
+
+    public double getXpModifier(int deckhandinessLevel) {
+        switch (deckhandinessLevel) {
+            case 1:
+                return 0.1;
+            case 2:
+                return 0.2;
+            case 3:
+                return 0.3;
+            case 4:
+                return 0.4;
+            default:
+                return 0;
         }
     }
 
