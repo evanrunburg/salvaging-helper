@@ -33,9 +33,12 @@ import net.runelite.client.util.Text;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import com.salvaginghelper.LootManager.LootOption;
 
 
 @Slf4j
@@ -67,7 +70,6 @@ public class SalvagingHelperPlugin extends Plugin
 			60473, 60475, 60477, 60479));
 	public final static ArrayList<Integer> salvageItemIds = new ArrayList<>(List.of(32847, 32849, 32851, 32853, 32855,
 			32857, 32859, 32861));
-	//public final static ArrayList<Integer> cargoHoldIds = Boat.HoldType.getAllIds();
 	public ArrayList<NPC> enemyCrewmates = new ArrayList<>();
 
 	// Status variables about one's current voyage
@@ -86,6 +88,7 @@ public class SalvagingHelperPlugin extends Plugin
 	private int playerAtFacility = -1;
 	public int crewmateCount = 0;
 	public Boat boat = new Boat(this);
+	public int currentXp = -1;
 
 	// Player specific variables
 	private int[][] runePouch = new int[4][2]; // runePouch[slot]={runeType, runeQuantity}
@@ -275,7 +278,7 @@ public class SalvagingHelperPlugin extends Plugin
 		if (key.equals("keepColor") || key.equals("dropColor") || key.equals("containerColor") || key.equals("alchColor")
 				|| key.equals("consumeColor") || key.equals("equipColor") || key.equals("processColor")
 				|| key.equals("cargoHoldColor") || key.equals("otherColor")) {
-			lootManager.rebuildUnderlayColorMap();
+			processLootColorChange();
 		}
 	}
 
@@ -565,6 +568,9 @@ public class SalvagingHelperPlugin extends Plugin
 			// TODO - add tracking here
 			boat.incrementItems();
 		}
+		if (m.contains("You don't have enough space for the herbs.")) {
+			// TODO
+		}
 	}
 
 	@Subscribe
@@ -574,7 +580,9 @@ public class SalvagingHelperPlugin extends Plugin
 			actionHandler.activeShipwrecks.clear();
 			actionHandler.objectHighlightMap.clear();
 			actionHandler.npcHighlightMap.clear();
-			sendChatMessage("Clearing all cached objects and NPCs.", false);
+			//sendChatMessage("Clearing all cached objects and NPCs.", false);
+		} else if (event.getGameState()==GameState.LOGGED_IN) {
+			currentXp = client.getSkillExperience(Skill.SAILING);
 		}
 	}
 
@@ -622,9 +630,11 @@ public class SalvagingHelperPlugin extends Plugin
 			int boostedLevel = change.getBoostedLevel();
 			int level = change.getLevel();
 			// TODO - track and manage
+			//sendChatMessage(change.toString(), true);
 			// if level is fine, set variable "needs to boost" false, and stop highlighting boost items
-			// fire notification and set a variable "needs to boost" if current lvl < lvl + configBoostAmt
+			// fire notification and set a variable "needs to boost" if boosted lvl < base lvl + configBoostAmt
 			// in actionHandler, highlight kegs, beer glasses, boost items...
+
 		}
 	}
 
@@ -699,7 +709,55 @@ public class SalvagingHelperPlugin extends Plugin
 		}
 	}
 
+	// You just received an arbitrary XP drop. How many salvage entered your cargo hold?
+	private int newSalvageCount(int xpDrop) {
+		// Do we have a keg of 2.5%?
+
+		// XP sources: salvaging, sorting, crewmate salvaging, extractor, xp lamp,
+
+
+		return -1;
+	}
+
 	//endregion
+
+	public void processLootColorChange() {
+
+		// How an item is currently highlighted is context-dependent and may not match what their LootOption might
+		// imply, so only update color mapping for items whose colors still match the old config value for their
+		// category
+
+		List<LootOption> toUpdate = new ArrayList<>();
+
+		for (LootOption opt : LootOption.values()) {
+			if (!lootManager.lootOptionToColor.get(opt).equals(configManager.getConfiguration("salvagingHelper",
+					opt.getColorConfigKey(), Color.class))) {
+				toUpdate.add(opt);
+			}
+		}
+
+		for (int itemId : lootManager.underlayColorMap.keySet()) {
+			LootItem lootItem = lootManager.getLootItem(itemId);
+			if (lootItem != null && toUpdate.contains(lootItem.getLootCategory())) {
+
+				LootOption opt = lootItem.getLootCategory();
+				Color underlayMapValue = lootManager.toLootColor(itemId);
+				Color lootOptionToColorValue = lootManager.lootOptionToColor.get(opt);
+
+				if (lootOptionToColorValue.equals(underlayMapValue)) {
+					String key = opt.getColorConfigKey();
+					Color colorFromConfig = configManager.getConfiguration("salvagingHelper", key, Color.class);
+					lootManager.setColor(itemId, colorFromConfig);
+				}
+			}
+		}
+
+		lootManager.rebuildLootColors();
+	}
+
+	public <T> T getConfigByKey(String configKey, Type T) {
+		return configManager.getConfiguration("salvagingHelper", configKey, T.getClass());
+	}
 
 
 }
