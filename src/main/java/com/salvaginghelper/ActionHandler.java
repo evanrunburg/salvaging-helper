@@ -233,7 +233,7 @@ public class ActionHandler {
         if (animationId==plugin.playerCurrentAnimation){ return; }
         Activity mappedActivity = mapAnimToActivity.get(animationId);
         if (mappedActivity == null) {
-            plugin.sendChatMessage("Unhandled player animation: "+animationId, false);
+            return;
         } else {
             plugin.playerLastAnimation = plugin.playerCurrentAnimation;
             if (mappedActivity==plugin.playerCurrentActivity){ return; } else {
