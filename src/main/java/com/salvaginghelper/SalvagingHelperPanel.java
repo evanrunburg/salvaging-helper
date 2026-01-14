@@ -3,16 +3,13 @@ package com.salvaginghelper;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import lombok.Getter;
-import lombok.Setter;
 import net.runelite.api.*;
 import net.runelite.client.callback.ClientThread;
-import net.runelite.client.config.ConfigDescriptor;
-import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.ConfigItemDescriptor;
-import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.*;
 import net.runelite.client.game.ItemManager;
-import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
+import net.runelite.client.ui.components.colorpicker.RuneliteColorPicker;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.materialtabs.MaterialTab;
@@ -30,7 +27,6 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.salvaginghelper.LootManager.SalvageType;
 import com.salvaginghelper.LootManager.LootOption;
@@ -43,6 +39,7 @@ public class SalvagingHelperPanel extends PluginPanel {
 
     private SalvagingHelperPlugin plugin;
     private SalvagingHelperConfig config;
+    private ColorPickerManager colorPickerManager;
     private boolean active = false;
     public HashMap<SalvageType, JPanel> salvageCategoryMap = new HashMap<>();
     public HashMap<SalvageType, JPanel> salvageLootItemsMap = new HashMap<>();
@@ -50,8 +47,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     public Multimap<Integer, JComboBox<LootOption>> itemToComboBox = ArrayListMultimap.create();
     public HashMap <JButton, LootContainer> toLootContainer = new HashMap<>();
     public HashMap <LootContainer, JButton> toContainerButton = new HashMap<>();
-    private ConcurrentHashMap<String, JCheckBox> configToCheckboxMap = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<JCheckBox, String> checkboxToConfigMap = new ConcurrentHashMap<>();
+    //private ConcurrentHashMap<String, JCheckBox> configToCheckboxMap = new ConcurrentHashMap<>();
+    //private ConcurrentHashMap<JCheckBox, String> checkboxToConfigMap = new ConcurrentHashMap<>();
 
     @Getter
     private JComboBox<SalvageMode> salvageModeComboBox;
@@ -71,6 +68,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final ImageIcon ICON_SWAP = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_swap_horiz_20px.png"));
     private final ImageIcon ICON_BUG = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_bug_report_20px.png"));
     private final ImageIcon ICON_STRATEGY = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_flowchart_20px.png"));
+    private final ImageIcon ICON_COLOR = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_palette_20px.png"));
+
 
     private final int SIDEBAR_WIDTH = 249;
     private final int SIDEBAR_INCLUDING_SCROLL = 230;
@@ -124,6 +123,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         this.configManager = configManager;
         this.lootManager = lootManager;
         this.clientThread = clientThread;
+        this.colorPickerManager = new ColorPickerManager(configManager);
 
         JPanel container = new JPanel();
         container.setLayout(new BorderLayout());
@@ -180,6 +180,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         JPanel generalContainer = new JPanel();
         generalContainer.setLayout(new BoxLayout(generalContainer, BoxLayout.Y_AXIS));
 
+        // General settings
         JPanel generalSettingsContainer = new JPanel();
         generalSettingsContainer.setBorder(doubleBorder);
         generalSettingsContainer.setLayout(new BoxLayout(generalSettingsContainer, BoxLayout.Y_AXIS));
@@ -197,6 +198,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         salvageModeDropdownContainer.setBorder(new EmptyBorder(1, 1, 1, 1));
         salvageModeDropdownContainer.setLayout(new BoxLayout(salvageModeDropdownContainer, BoxLayout.X_AXIS));
 
+        // Salvaging mode
         DefaultComboBoxModel<SalvageMode> model = new DefaultComboBoxModel<>();
         model.addElement(SalvageMode.SALVAGE_AND_SORT);
         model.addElement(SalvageMode.SALVAGE_ONLY);
@@ -215,6 +217,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         salvageModeDropdownContainer.add(Box.createRigidArea(new Dimension(4, 1)));
         salvageModeDropdownContainer.add(salvageModeComboBox);
 
+
         JPanel salvagingModeContainer = new JPanel();
         salvagingModeContainer.setLayout(new BoxLayout(salvagingModeContainer, BoxLayout.Y_AXIS));
         salvagingModeContainer.setBorder(doubleBorder);
@@ -225,6 +228,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         salvagingModeContainer.add(createSettingsCheckbox("dockOnFull"));
         JPanel salvagingModeHeader = createSettingsHeader("Salvaging strategy", ICON_HOOK, salvagingModeContainer, true);
 
+        // Overrides
         JPanel overrideSettingsContainer = new JPanel();
         overrideSettingsContainer.setBorder(doubleBorder);
         overrideSettingsContainer.setLayout(new BoxLayout(overrideSettingsContainer, BoxLayout.Y_AXIS));
@@ -235,6 +239,23 @@ public class SalvagingHelperPanel extends PluginPanel {
         overrideSettingsContainer.add(createSettingsCheckbox("hideNpcInteract"));
         JPanel overrideSettingsHeader = createSettingsHeader("Overrides", ICON_SWAP, overrideSettingsContainer, true);
 
+        // Loot colors
+        JPanel lootColorContainer = new JPanel();
+        lootColorContainer.setLayout(new BoxLayout(lootColorContainer, BoxLayout.Y_AXIS));
+        lootColorContainer.setBorder(doubleBorder);
+
+        Collection<ConfigItemDescriptor> itemDescriptors = configManager.getConfigDescriptor(config).getItems();
+        for (ConfigItemDescriptor desc : itemDescriptors){
+            for (LootOption opt : LootOption.values()) {
+                ConfigItem item = desc.getItem();
+                if (item.section().equals("lootSection") && item.keyName().equals(opt.getColorConfigKey())){
+                    lootColorContainer.add(createItemColorSelector(opt, item));
+                }
+            }
+        }
+
+        JPanel lootColorHeader = createSettingsHeader("Loot underlays", ICON_COLOR, lootColorContainer, true);
+
         generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
         generalContainer.add(generalSettingsHeader);
         generalContainer.add(generalSettingsContainer);
@@ -244,6 +265,8 @@ public class SalvagingHelperPanel extends PluginPanel {
         generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
         generalContainer.add(overrideSettingsHeader);
         generalContainer.add(overrideSettingsContainer);
+        generalContainer.add(lootColorHeader);
+        generalContainer.add(lootColorContainer);
 
         return generalContainer;
     }
@@ -372,6 +395,20 @@ public class SalvagingHelperPanel extends PluginPanel {
         });
         debugContainer.add(extractorReloadInfo);
 
+        JButton configDescDump = new JButton("Dump config desc");
+        configDescDump.addActionListener(e -> {
+            clientThread.invokeLater(() -> {
+                plugin.sendChatMessage(configManager.getConfigDescriptor(config).getItems().toString(), false);
+                //plugin.sendChatMessage(configManager.toString(), false);
+                //plugin.sendChatMessage(configManager.getConfig(SalvagingHelperConfig) , false);
+
+
+
+
+            });
+        });
+        debugContainer.add(configDescDump);
+
 
 
         return debugContainer;
@@ -380,7 +417,6 @@ public class SalvagingHelperPanel extends PluginPanel {
 
     //region Build: Loot Panel
     public JPanel buildLootPanel() {
-        //JPanel lootContainer = new JPanel(new BorderLayout(0, 0));
         JPanel lootContainer = new JPanel();
         lootContainer.setLayout(new BoxLayout(lootContainer, BoxLayout.Y_AXIS));
         JPanel toolbarPanel = new JPanel();
@@ -664,6 +700,7 @@ public class SalvagingHelperPanel extends PluginPanel {
     public JPanel createSettingsCheckbox(String configKey) {
         JPanel settingsContainer = new JPanel(new BorderLayout());
         settingsContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
+        //settingsContainer.setBorder(doubleBorder);
         settingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         JLabel settingName = new JLabel();
@@ -750,10 +787,74 @@ public class SalvagingHelperPanel extends PluginPanel {
         return settingsHeaderContainer;
     }
 
+    public JPanel createItemColorSelector(LootOption lootOption, ConfigItem configItem){
+
+        String configKey = lootOption.getColorConfigKey();
+        String configName = configItem.name();
+        String configDesc = configItem.description();
+        Color loadColor = getColor(lootOption);
+        String loadColorString = getColorString(loadColor);
+
+        JPanel colorSelectorContainer = new JPanel(new BorderLayout());
+        colorSelectorContainer.setBorder(new EmptyBorder(2, 2, 2, 2));
+        colorSelectorContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        colorSelectorContainer.setFont(FontManager.getRunescapeFont());
+
+        JLabel nameLabel = new JLabel(configName);
+        nameLabel.setToolTipText(configDesc);
+
+        JButton colorButton = new JButton(loadColorString);
+        colorButton.setBackground(loadColor);
+        colorButton.setForeground(legibleFontColorFor(loadColor));
+        colorButton.setToolTipText(configDesc);
+        colorButton.setPreferredSize(new Dimension(108, 22));
+
+        colorButton.addActionListener(e -> {
+            SwingUtilities.invokeLater( () -> {
+                RuneliteColorPicker colorPickerPopup = colorPickerManager.create(client, colorButton.getBackground(),
+                        "Choose new color", false);
+                colorPickerPopup.setOnClose(newColor -> {
+                    colorButton.setBackground(newColor);
+                    colorButton.setBackground(legibleFontColorFor(newColor));
+                    colorButton.setText(getColorString(newColor));
+                    plugin.setConfigByKey(configKey, newColor);
+                });
+                colorPickerPopup.setVisible(true);
+            });
+        });
+
+        colorSelectorContainer.add(nameLabel, BorderLayout.WEST);
+        colorSelectorContainer.add(colorButton, BorderLayout.EAST);
+
+        return colorSelectorContainer;
+    }
+
     public void toggleGeneralPanelCollapsed(JPanel panelToCollapse, JLabel collapseIcon){
 
     }
     //endregion
+
+    public String getColorString(Color color){
+        return String.format("#%02X%02X%02X%02X", color.getRed(), color.getBlue(), color.getGreen(), color.getAlpha());
+    }
+
+    // https://stackoverflow.com/a/3943023
+    public Color legibleFontColorFor(Color backgroundColor) {
+        double L = calculateLuminance(backgroundColor);
+        return (L>0.179) ? Color.BLACK : Color.WHITE;
+    }
+
+    public double calculateLuminance(Color color) {
+        double r = (double) color.getRed() / 255;
+        double g = (double) color.getGreen() / 255;
+        double b = (double) color.getBlue() / 255;
+
+        double rC = (r < 0.04045001) ? (r / 12.92) : Math.pow(((r+0.055)/1.055), 2.4);
+        double gC = (g < 0.04045001) ? (g / 12.92) : Math.pow(((g+0.055)/1.055), 2.4);
+        double bC = (b < 0.04045001) ? (b / 12.92) : Math.pow(((b+0.055)/1.055), 2.4);
+
+        return (0.2126*r + 0.7152*g + 0.0722*b);
+    }
 
     public void setItemCategory(int itemId, LootOption lootCategory) {
 
@@ -837,5 +938,13 @@ public class SalvagingHelperPanel extends PluginPanel {
             configManager.setConfiguration("salvagingHelper", container.getConfigKey(), true);
             button.setBackground(CONTAINER_BUTTON_ENABLED);
         }
+    }
+
+    private Color getColor(LootOption lootOption) {
+        return plugin.getConfigByKey(lootOption.getColorConfigKey(), Color.class);
+    }
+
+    private void setColor(LootOption lootOption, Color newColor) {
+        plugin.setConfigByKey(lootOption.getColorConfigKey(), newColor);
     }
 }

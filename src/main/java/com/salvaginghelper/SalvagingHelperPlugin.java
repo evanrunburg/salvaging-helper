@@ -143,9 +143,7 @@ public class SalvagingHelperPlugin extends Plugin
 		debug = config.debugModeEnabled();
 		boat.setActionHandler(actionHandler);
 		// TODO - why is this throwing a nullpointerexception on startup?
-		clientThread.invokeLater( () -> {
-			onBoat = client.getVarbitValue(19136) > 0;
-		});
+
 
 		// Mappings
 		ObjectTable = new LookupTable("src/main/resources/sailingobjects.properties");
@@ -583,6 +581,9 @@ public class SalvagingHelperPlugin extends Plugin
 			//sendChatMessage("Clearing all cached objects and NPCs.", false);
 		} else if (event.getGameState()==GameState.LOGGED_IN) {
 			currentXp = client.getSkillExperience(Skill.SAILING);
+			clientThread.invokeLater( () -> {
+				onBoat = client.getVarbitValue(19136) > 0;
+			});
 		}
 	}
 
@@ -757,6 +758,10 @@ public class SalvagingHelperPlugin extends Plugin
 
 	public <T> T getConfigByKey(String configKey, Type T) {
 		return configManager.getConfiguration("salvagingHelper", configKey, T);
+	}
+
+	public <T> void setConfigByKey(String configKey, T newValue) {
+		configManager.setConfiguration("salvagingHelper", configKey, newValue);
 	}
 
 

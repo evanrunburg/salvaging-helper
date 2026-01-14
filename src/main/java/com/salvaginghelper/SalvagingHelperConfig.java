@@ -58,7 +58,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "keepColor",
 			name = "Color - Keep",
 			description = "Color to highlight items to keep in the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color keepColor()
 	{
@@ -71,7 +72,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "dropColor",
 			name = "Color - Drop",
 			description = "Color to highlight items to drop in the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color dropColor()
 	{
@@ -84,7 +86,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "containerColor",
 			name = "Color - Container",
 			description = "Color to highlight items to be put in a container in the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color containerColor()
 	{
@@ -97,7 +100,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "alchColor",
 			name = "Color - Alch",
 			description = "Color to highlight items to alch in the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color alchColor()
 	{
@@ -110,7 +114,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "consumeColor",
 			name = "Color - Consume",
 			description = "Color to highlight items to consume in the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color consumeColor()
 	{
@@ -123,7 +128,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "equipColor",
 			name = "Color - Equip",
 			description = "Color to highlight items to equip from the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color equipColor()
 	{
@@ -136,7 +142,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "processColor",
 			name = "Color - Process",
 			description = "Color to highlight items to process in the inventory.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color processColor()
 	{
@@ -149,7 +156,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "cargoHoldColor",
 			name = "Color - Cargo Hold",
 			description = "Color to highlight items to be put into the cargo hold.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color cargoHoldColor()
 	{
@@ -162,7 +170,8 @@ public interface SalvagingHelperConfig extends Config
 			keyName = "otherColor",
 			name = "Color - Other",
 			description = "Color to highlight items of some other yet-to-be-determined category.",
-			section = lootSection
+			section = lootSection,
+			hidden = true
 	)
 	default Color otherColor()
 	{
