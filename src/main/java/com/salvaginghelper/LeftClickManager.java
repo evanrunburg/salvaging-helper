@@ -23,6 +23,9 @@ public class LeftClickManager {
     private final int SWAP_USE = 2;
     private final int SWAP_FILL = 3;
 
+    public final int SHIPWRECK_DIST_THRESHOLD = 7000;
+
+
     private final ArrayList<String> boatOptionsToDeprio = new ArrayList<>(Arrays.asList("Set", "Check", "Empty",
             "Operate", "Check-ammunition", "Reset-ammunition", "Un-set", "Navigate", "Escape"));
     private final ArrayList<String> itemMenuOptionBlacklist = new ArrayList<>(Arrays.asList("Drink", "Wear", "Clean",
@@ -81,9 +84,10 @@ public class LeftClickManager {
         int idf = e.getIdentifier();
 
         // Facilities
-        if (boatOptionsToDeprio.contains(opt) ) {
+        if (boatOptionsToDeprio.contains(opt)) {
             if (idf>0) {
-                if (deprioObjMap.containsKey(idf) && deprioObjMap.get(idf)==true && config.hideFacilityLeftClick()) {
+                if (deprioObjMap.containsKey(idf) && deprioObjMap.get(idf)==true && config.hideFacilityLeftClick()
+                            && actionHandler.getClosestWreckDist() < SHIPWRECK_DIST_THRESHOLD) {
                     e.setDeprioritized(true);
                 }
             }
@@ -98,9 +102,12 @@ public class LeftClickManager {
 
         // Crewmates
         else if (opt.equals("Command")) {
+            if (actionHandler.getClosestWreckDist() > SHIPWRECK_DIST_THRESHOLD || !config.hideCrewmateLeftClick()) {
+                return 0;
+            }
             if (e.getNpc()!=null) {
                 int npcId = e.getNpc().getId();
-                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId) && config.hideCrewmateLeftClick()) {
+                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId)) {
                     e.setDeprioritized(true);
                 }
             }
@@ -110,7 +117,8 @@ public class LeftClickManager {
         else if (opt.equals("Talk-to") || opt.equals("Dive")) {
             if (e.getNpc()!=null) {
                 int npcId = e.getNpc().getId();
-                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId) && config.hideNpcInteract()) {
+                if (deprioNPCMap.containsKey(npcId) && deprioNPCMap.get(npcId) && config.hideNpcInteract()
+                            && actionHandler.getClosestWreckDist() < SHIPWRECK_DIST_THRESHOLD) {
                     e.setDeprioritized(true);
                 }
             }
@@ -118,6 +126,7 @@ public class LeftClickManager {
 
         // Ground items
         else if (e.getType()==MenuAction.GROUND_ITEM_THIRD_OPTION && config.hideGroundItems()){
+            // TODO - should we make this subject to being near a shipwreck?
             e.setDeprioritized(true);
         }
 

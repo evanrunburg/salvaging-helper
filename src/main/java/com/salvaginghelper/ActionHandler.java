@@ -129,6 +129,8 @@ public class ActionHandler {
     private long cargoHoldSalvageCount;
     private int inactiveHooks;
     private int activeHooks;
+    @Getter
+    private int closestWreckDist;
 
     private final Client client;
     private final LootManager lootManager;
@@ -172,6 +174,7 @@ public class ActionHandler {
         int hookCount = activeHooks + inactiveHooks;
         int closestActiveShipwreckDistance = closestActiveWreckDist(client);
         int closestInactiveShipwreckDistance = closestInactiveWreckDist(client);
+        closestWreckDist = closestWreckDist(client);
 
         // Always evaluate these
         // Salvaging station
@@ -615,7 +618,7 @@ public class ActionHandler {
         }
         for (GameObject wreck : activeShipwrecks) {
             int dist = distanceToPlayer(wreck, boat, client);
-            if (dist < closestActiveShipwreckDistance){
+            if (dist < closestActiveShipwreckDistance) {
                 closestActiveShipwreckDistance = dist;
             }
         }
@@ -634,6 +637,27 @@ public class ActionHandler {
             }
         }
         return closestInactiveShipwreckDistance;
+    }
+
+    public int closestWreckDist(Client client) {
+        int closestShipwreckDistance = 100000;
+        if (inactiveShipwrecks.isEmpty() && activeShipwrecks.isEmpty()) {
+            return 100000;
+        }
+        for (GameObject wreck : inactiveShipwrecks) {
+            int dist = distanceToPlayer(wreck, boat, client);
+            if (dist < closestShipwreckDistance){
+                closestShipwreckDistance = dist;
+            }
+        }
+        for (GameObject wreck : activeShipwrecks) {
+            int dist = distanceToPlayer(wreck, boat, client);
+            if (dist < closestShipwreckDistance) {
+                closestShipwreckDistance = dist;
+            }
+        }
+
+        return closestShipwreckDistance;
     }
 
     private int distanceToPlayer(GameObject obj, Boat theBoat, Client theClient) {
@@ -750,7 +774,5 @@ public class ActionHandler {
 
         return -1;
     }
-
-
     //endregion
 }

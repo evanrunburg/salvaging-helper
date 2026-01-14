@@ -67,7 +67,8 @@ public class SalvagingHelperDebugOverlay extends Overlay {
             OverlayUtil.renderTextLocation(graphics, new Point(10,200), "Last activity: "+plugin.playerLastActivity, debugOverlayColor);
             OverlayUtil.renderTextLocation(graphics, new Point(10,216), "Next task: "+plugin.directions, debugOverlayColor);
             OverlayUtil.renderTextLocation(graphics, new Point(10, 248), "Inactive shipwrecks: "+plugin.actionHandler.inactiveShipwrecks.size()+"; active shipwrecks: "+plugin.actionHandler.activeShipwrecks.size(), debugOverlayColor);
-            OverlayUtil.renderTextLocation(graphics, new Point(10,264), "Tracked game objects: "+plugin.actionHandler.objectHighlightMap.size(), debugOverlayColor);
+            OverlayUtil.renderTextLocation(graphics, new Point(10, 264), "Closest wreck: "+plugin.actionHandler.getClosestWreckDist(), debugOverlayColor);
+            OverlayUtil.renderTextLocation(graphics, new Point(10,280), "Tracked game objects: "+plugin.actionHandler.objectHighlightMap.size(), debugOverlayColor);
         }
         return getBounds().getSize();
     }

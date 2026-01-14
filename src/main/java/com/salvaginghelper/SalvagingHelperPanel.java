@@ -700,7 +700,6 @@ public class SalvagingHelperPanel extends PluginPanel {
     public JPanel createSettingsCheckbox(String configKey) {
         JPanel settingsContainer = new JPanel(new BorderLayout());
         settingsContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
-        //settingsContainer.setBorder(doubleBorder);
         settingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         JLabel settingName = new JLabel();
