@@ -183,6 +183,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
         drawHookOverlay(graphics, b.getHookPort(), boatEntity, w, h);
         drawHookOverlay(graphics, b.getHookStarboard(), boatEntity, w, h);
 
+/*        // TODO - make this functional post-1.0 release
         // cargo hold
         if (config.drawCargoContents() && renderCargoOverlayText && b.getCargoHold() != null) {
             GameObject cargoHold = b.getCargoHold();
@@ -191,7 +192,7 @@ public class SalvagingHelperObjectOverlay extends Overlay {
             Point p = Perspective.getCanvasTextLocation(client, graphics, boatEntity.transformToMainWorld(cargoHold.getLocalLocation()), str, 1);
             OverlayUtil.renderTextLocation(graphics, p, str,
                     (items==b.getCargoHoldCapacity()) ? Color.RED : config.cargoHoldColor());
-        }
+        }*/
 
 
 
