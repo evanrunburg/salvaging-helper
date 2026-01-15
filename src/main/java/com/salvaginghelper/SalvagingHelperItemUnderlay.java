@@ -39,10 +39,10 @@ class SalvagingHelperItemUnderlay extends WidgetItemOverlay {
         // Canonicalize for base item ID to match against our lists, but remember to render against actual
         // item ID for correct underlay
         int finalItemId = itemManager.canonicalize(itemId);
-        Color color = plugin.lootManager.toLootColor(finalItemId);
+        Color color = plugin.lootManager.getColor(finalItemId);
         if (color!=null) {
             // While cargo hold is open, only render depositable items
-            if (widgetItem.getWidget().getId()!=61865985 | color.equals(config.cargoHoldColor()) ) {
+            if (widgetItem.getWidget().getId()!=61865985 || color.equals(config.cargoHoldColor())) {
                 Rectangle bounds = widgetItem.getCanvasBounds();
                 final BufferedImage outline = itemManager.getItemOutline(itemId, widgetItem.getQuantity(), color);
                 graphics.drawImage(outline, (int) bounds.getX(), (int) bounds.getY(), null);

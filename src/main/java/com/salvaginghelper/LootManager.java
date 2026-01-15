@@ -177,8 +177,20 @@ public class LootManager {
         }
     }
 
-    public Color toLootColor(int itemId) {
+    public Color getColor(int itemId) {
         return underlayColorMap.get(itemId);
+    }
+
+    public Color getColor(Item item) {
+        return underlayColorMap.get(item.getId());
+    }
+
+    public Color getColor(LootItem lootItem) {
+        return underlayColorMap.get(lootItem.getItemId());
+    }
+
+    public Color getColor(LootOption lootOption) {
+        return plugin.getConfigByKey(lootOption.getColorConfigKey(), Color.class);
     }
 
     public LootItem getLootItem(int itemId) {

@@ -62,6 +62,7 @@ public class ActionHandler {
 
     private Instruction currentInstruction = Instruction.JUST_CHILLING;
 
+    @Getter
     private ItemContainer inv;
     private Boat boat;
     public Color clear = new Color(0, 0, 0, 0);
@@ -256,7 +257,6 @@ public class ActionHandler {
                 // TODO: check if the facility they were at has an idle animation. Change nothing if not.
                 return;
             }
-            //plugin.sendChatMessage(crewmate.getName()+" activity from "+crewmate.getCurrentStatus()+" ("+crewmate.getCurrentAnimation()+") to "+mappedActivity.name()+" for new animation "+animationId);
             crewmate.setLastAnimation(crewmate.getCurrentAnimation());
             crewmate.setCurrentAnimation(animationId);
             crewmate.setLastStatus(crewmate.getCurrentStatus());
@@ -530,7 +530,7 @@ public class ActionHandler {
                 if (getLootCategory(id) == LootOption.CONTAINER) {
                     LootContainer container = lootManager.getContainerFromEligibleItem(id);
 
-                    // If we have an item's container and it's we can left-click to fill, highlight that to streamline
+                    // If we have an item's container and it's one we can left-click to fill, highlight that to streamline
                     if (invHasContainer(container, inv) && lootManager.isContainerEnabled(container)) { // Updates currentContainers
                         if (container.getHasLeftClickFill()) {
                             highlight(id, clear);
@@ -707,7 +707,7 @@ public class ActionHandler {
     public Boolean invHasContainer(LootContainer container, ItemContainer inv) {
         List<Integer> containerIds = container.getItemIds();
         for (int itemId : containerIds) {
-            if (inv.contains(itemId)) {
+            if (inv.contains(itemId) && Boolean.parseBoolean(plugin.getConfigByKey(container.getConfigKey(), String.class))) {
                 currentContainers.put(itemId, container);
                 return true;
             }

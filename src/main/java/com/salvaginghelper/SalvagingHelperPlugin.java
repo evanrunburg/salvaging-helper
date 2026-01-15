@@ -6,7 +6,6 @@ import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.Menu;
 import net.runelite.api.events.*;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
@@ -29,7 +28,6 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import com.salvaginghelper.Crewmate.Activity;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.Text;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -170,7 +168,7 @@ public class SalvagingHelperPlugin extends Plugin
 		navigationButton = NavigationButton.builder()
 				.tooltip("Salvaging Helper")
 				.icon(icon)
-				.priority(4)
+				.priority(5)
 				.panel(sidePanel)
 				.build();
 		clientToolbar.addNavigation(navigationButton);
@@ -273,11 +271,26 @@ public class SalvagingHelperPlugin extends Plugin
 		debug = config.debugModeEnabled();
 		String key = event.getKey();
 		// TODO - can we simplify this by looking at a key's parent value? event.getGroup() just gives us plugin name...
+
+		// Repaint cached underlays
 		if (key.equals("keepColor") || key.equals("dropColor") || key.equals("containerColor") || key.equals("alchColor")
 				|| key.equals("consumeColor") || key.equals("equipColor") || key.equals("processColor")
 				|| key.equals("cargoHoldColor") || key.equals("otherColor")) {
-			processLootColorChange();
+			if (event.getNewValue()!=null) {
+				processLootColorChange();
+			}
 		}
+
+		// Force action handler to re-process inventory so we don't have to wait for an inventory item change to
+		// see our new settings take effect
+		if (key.equals("logBasketEnabled") || key.equals("plankSackEnabled") || key.equals("gemBagEnabled") ||
+				key.equals("herbSackEnabled") || key.equals("fishBarrelEnabled") || key.equals("soulbearerEnabled") ||
+				key.equals("runePouchEnabled") || key.equals("seedBoxEnabled") || key.equals("coalBagEnabled") ||
+				key.equals("tackleBoxEnabled") || key.equals("huntsmanKitEnabled") || key.equals("reagentPouchEnabled")) {
+			actionHandler.setInventoryWasUpdated(true);
+		}
+
+
 	}
 
 	@Subscribe
@@ -742,7 +755,7 @@ public class SalvagingHelperPlugin extends Plugin
 			if (lootItem != null && toUpdate.contains(lootItem.getLootCategory())) {
 
 				LootOption opt = lootItem.getLootCategory();
-				Color underlayMapValue = lootManager.toLootColor(itemId);
+				Color underlayMapValue = lootManager.getColor(itemId);
 				Color lootOptionToColorValue = lootManager.lootOptionToColor.get(opt);
 
 				if (lootOptionToColorValue.equals(underlayMapValue)) {
@@ -751,11 +764,14 @@ public class SalvagingHelperPlugin extends Plugin
 					lootManager.setColor(itemId, colorFromConfig);
 				}
 			}
+			else if (lootManager.getContainer(itemId) != null && lootManager.getColor(itemId) != actionHandler.clear) {
+				lootManager.setColor(itemId, config.containerColor());
+			}
 		}
-
 		lootManager.rebuildLootColors();
 	}
 
+	// If fetching a boolean, will return a String that needs to be handled and parsed
 	public <T> T getConfigByKey(String configKey, Type T) {
 		return configManager.getConfiguration("salvagingHelper", configKey, T);
 	}
