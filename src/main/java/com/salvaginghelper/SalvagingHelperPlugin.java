@@ -17,6 +17,7 @@ import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Notification;
+import net.runelite.client.config.NotificationSound;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
@@ -135,6 +136,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 	public LootManager lootManager;
 	public LeftClickManager leftClickManager;
+	private SalvagingHelperPanel sidePanel;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -164,7 +166,7 @@ public class SalvagingHelperPlugin extends Plugin
 
 		// UI
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "salvaging_helper_icon.png");
-        SalvagingHelperPanel sidePanel = new SalvagingHelperPanel(this, config, client, itemManager, configManager, lootManager, clientThread);
+		sidePanel = new SalvagingHelperPanel(this, config, client, itemManager, configManager, lootManager, clientThread);
 		navigationButton = NavigationButton.builder()
 				.tooltip("Salvaging Helper")
 				.icon(icon)
@@ -172,6 +174,9 @@ public class SalvagingHelperPlugin extends Plugin
 				.panel(sidePanel)
 				.build();
 		clientToolbar.addNavigation(navigationButton);
+
+		// Config
+		configManager.setDefaultConfiguration(config, false);
 	}
 
 	@Override
@@ -269,6 +274,8 @@ public class SalvagingHelperPlugin extends Plugin
 	@Subscribe
 	private void onConfigChanged(final ConfigChanged event) {
 		debug = config.debugModeEnabled();
+		sidePanel.debugTab.setVisible(debug);
+
 		String key = event.getKey();
 		// TODO - can we simplify this by looking at a key's parent value? event.getGroup() just gives us plugin name...
 
@@ -289,8 +296,6 @@ public class SalvagingHelperPlugin extends Plugin
 				key.equals("tackleBoxEnabled") || key.equals("huntsmanKitEnabled") || key.equals("reagentPouchEnabled")) {
 			actionHandler.setInventoryWasUpdated(true);
 		}
-
-
 	}
 
 	@Subscribe
@@ -510,10 +515,8 @@ public class SalvagingHelperPlugin extends Plugin
 
 	@Subscribe
 	private void onItemContainerChanged(ItemContainerChanged itemChange) {
-		// TODO: Runelite gamevals seem to be broken for interfaces atm, let's replace these numbers later
 		ItemContainer container = itemChange.getItemContainer();
 		int containerId = itemChange.getContainerId();
-		// sendChatMessage(itemChange.toString()+" / size: "+container.size());
 		switch (containerId) {
 			case 93: // inventory
 				actionHandler.setInventory(container);
@@ -678,33 +681,49 @@ public class SalvagingHelperPlugin extends Plugin
 
     public void sendExtractorNotification() {
 		if (config.extractorAlertsEnabled()) {
-			Notification notif = new Notification(true, true, true, true,
+			Notification notif = new Notification(true, true, true,
+                    config.extractorTrayType() != TrayIcon.MessageType.NONE,
 					config.extractorTrayType(),
 					config.extractorFocusType(),
-					config.extractorAlertSound(), "",
+					(config.extractorAlertSound() != NotificationSound.CUSTOM) ? config.extractorAlertSound() : NotificationSound.OFF,
+					"",
 					config.extractorAlertVolume(),
 					5000,
 					false,
 					config.extractorScreenFlashType(),
-					config.screenFlashColor(),
+					config.extractorFlashColor(),
 					config.extractorAlertWhileFocused());
 			notifier.notify(notif, "Crystal extractor ready to harvest");
+			if (config.extractorAlertSound() == NotificationSound.CUSTOM && config.extractorCustomSound() > 0) {
+				// Volume goes from 0 to 127
+				clientThread.invoke(() -> {
+					client.playSoundEffect(config.extractorCustomSound(), (int) 127*config.extractorAlertVolume()/100);
+				});
+			}
 		}
 	}
 
 	public void sendIdleNotification(String message) {
 		if (config.idleAlertsEnabled()) {
-			Notification notif = new Notification(true, true, true, true,
+			Notification notif = new Notification(true, true, true,
+					config.idleTrayType() != TrayIcon.MessageType.NONE,
 					config.idleTrayType(),
 					config.idleFocusType(),
-					config.idleAlertSound(), "",
+					(config.idleAlertSound() != NotificationSound.CUSTOM) ? config.idleAlertSound() : NotificationSound.OFF,
+					"",
 					config.idleAlertVolume(),
 					5000,
 					false,
 					config.idleScreenFlashType(),
-					config.screenFlashColor(),
+					config.idleFlashColor(),
 					config.idleAlertWhileFocused());
 			notifier.notify(notif, message);
+			if (config.extractorAlertSound() == NotificationSound.CUSTOM && config.extractorCustomSound() > 0) {
+				// Volume goes from 0 to 127
+				clientThread.invoke(() -> {
+					client.playSoundEffect(config.idleCustomSound(), (int) 127*config.idleAlertVolume()/100);
+				});
+			}
 		}
 	}
     //endregion
@@ -761,7 +780,9 @@ public class SalvagingHelperPlugin extends Plugin
 				if (lootOptionToColorValue.equals(underlayMapValue)) {
 					String key = opt.getColorConfigKey();
 					Color colorFromConfig = configManager.getConfiguration("salvagingHelper", key, Color.class);
-					lootManager.setColor(itemId, colorFromConfig);
+					if (colorFromConfig != null) {
+						lootManager.setColor(itemId, colorFromConfig);
+					}
 				}
 			}
 			else if (lootManager.getContainer(itemId) != null && lootManager.getColor(itemId) != actionHandler.clear) {

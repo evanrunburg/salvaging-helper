@@ -25,6 +25,10 @@ import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
 
@@ -40,7 +44,6 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final SalvagingHelperPlugin plugin;
     private final SalvagingHelperConfig config;
     private final ColorPickerManager colorPickerManager;
-    private boolean active = false;
     public HashMap<SalvageType, JPanel> salvageCategoryMap = new HashMap<>();
     public HashMap<SalvageType, JPanel> salvageLootItemsMap = new HashMap<>();
     public HashMap<JPanel, SalvageType> toSalvageCategory = new HashMap<>();
@@ -48,6 +51,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     public HashMap <JButton, LootContainer> toLootContainer = new HashMap<>();
     public HashMap <LootContainer, JButton> toContainerButton = new HashMap<>();
     private HashMap<LootOption, JButton> lootColorButtonMap = new HashMap<>();
+    private HashMap<String, JComponent> configWidgetMap = new HashMap<>();
+    private HashMap<String, Class<?>> configTypeMap = new HashMap<>();
 
     @Getter
     private JComboBox<SalvageMode> salvageModeComboBox;
@@ -55,8 +60,10 @@ public class SalvagingHelperPanel extends PluginPanel {
     // https://fonts.google.com/icons (Apache 2.0)
     private final ImageIcon ICON_DROPDOWN_UNCLICKED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_down_20px.png"));
     private final ImageIcon ICON_DROPDOWN_UNCLICKED_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_down_20px_gray.png"));
+    private final ImageIcon ICON_DROPDOWN_UNCLICKED_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_down_20px_darkgray.png"));
     private final ImageIcon ICON_DROPDOWN_CLICKED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_up_20px.png"));
     private final ImageIcon ICON_DROPDOWN_CLICKED_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_up_20px_gray.png"));
+    private final ImageIcon ICON_DROPDOWN_CLICKED_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_up_20px_darkgray.png"));
     private final ImageIcon ICON_EXPAND_ALL = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_expand_20px.png"));
     private final ImageIcon ICON_COLLAPSE_ALL = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_collapse_20px.png"));
     private final ImageIcon ICON_RESET = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_restart_20px.png"));
@@ -66,8 +73,21 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final ImageIcon ICON_HOOK = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_phishing_20px.png"));
     private final ImageIcon ICON_SWAP = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_swap_horiz_20px.png"));
     private final ImageIcon ICON_BUG = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_bug_report_20px.png"));
+    private final ImageIcon ICON_BUG_INACTIVE = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_bug_report_gray_20px.png"));
     private final ImageIcon ICON_STRATEGY = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_flowchart_20px.png"));
     private final ImageIcon ICON_COLOR = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_palette_20px.png"));
+    private final ImageIcon ICON_SETTINGS = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_settings_16px.png"));
+    private final ImageIcon ICON_SETTINGS_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_settings_gray_16px.png")); // Color 999999
+    private final ImageIcon ICON_SETTINGS_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_settings_darkgray_16px.png")); // Color #434343
+    private final ImageIcon ICON_BACK = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_arrow_left_alt_20px.png"));
+    private final ImageIcon ICON_BACK_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_arrow_left_alt_gray_20px.png"));
+    private final ImageIcon ICON_BACK_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_arrow_left_alt_darkgray_20px.png"));
+    private final ImageIcon ICON_TEST = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_play_arrow_20px.png"));
+    private final ImageIcon ICON_TEST_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_play_arrow_dark_20px.png"));
+    private final ImageIcon ICON_TEST_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_play_arrow_darker_20px.png"));
+    private final ImageIcon ICON_UNSET = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_history_20px.png"));
+    private final ImageIcon ICON_UNSET_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_history_gray_20px.png"));
+    private final ImageIcon ICON_UNSET_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_history_darkgray_20px.png"));
 
 
     private final int SIDEBAR_WIDTH = 249;
@@ -107,6 +127,21 @@ public class SalvagingHelperPanel extends PluginPanel {
     //@Inject
     //private ClientToolbar clientToolbar;
 
+    private final JPanel tabGroupPanel;
+    private final JPanel displayPanel;
+    private final JPanel generalTabPanel;
+    private final JPanel lootTabPanel;
+    private final JPanel debugTabPanel;
+
+    private final MaterialTabGroup tabGroup;
+    private final MaterialTab generalTab;
+    public final MaterialTab debugTab;
+    private final MaterialTab extractorSettingsTab;
+    private final MaterialTab idleSettingsTab;
+    private final JPanel extractorSettingsPanel;
+    private final JPanel idleSettingsPanel;
+    //private final JPanel boostSettingsPanel;
+
     //endregion
 
     //region Constructor
@@ -131,20 +166,20 @@ public class SalvagingHelperPanel extends PluginPanel {
         scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-        JPanel tabGroupPanel = new JPanel();
-        JPanel displayPanel = new JPanel();
-        JPanel generalTabPanel = buildGeneralPanel();
-        JPanel lootTabPanel = buildLootPanel();
-        JPanel debugTabPanel = buildDebugPanel();
+        tabGroupPanel = new JPanel();
+        displayPanel = new JPanel();
+        generalTabPanel = buildGeneralPanel();
+        lootTabPanel = buildLootPanel();
+        debugTabPanel = buildDebugPanel();
 
         displayPanel.setBackground(ColorScheme.DARKER_GRAY_HOVER_COLOR);
         displayPanel.setLayout(new BorderLayout(0, 0));
 
-        MaterialTabGroup tabGroup = new MaterialTabGroup(displayPanel);
+        tabGroup = new MaterialTabGroup(displayPanel);
         tabGroup.setLayout(new BorderLayout(0, 0));
-        MaterialTab generalTab = new MaterialTab("General", tabGroup, generalTabPanel);
+        generalTab = new MaterialTab("General", tabGroup, generalTabPanel);
         MaterialTab lootTab = new MaterialTab("Loot", tabGroup, lootTabPanel);
-        MaterialTab debugTab = new MaterialTab(ICON_BUG, tabGroup, debugTabPanel);
+        debugTab = new MaterialTab(ICON_BUG_INACTIVE, tabGroup, debugTabPanel);
 
         generalTab.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         generalTab.setFont(FontManager.getRunescapeBoldFont());
@@ -156,7 +191,16 @@ public class SalvagingHelperPanel extends PluginPanel {
         // Material Tabs
         tabGroup.addTab(generalTab);
         tabGroup.addTab(lootTab);
-        if (plugin.debug) { tabGroup.addTab(debugTab); }
+        if (config.debugModeEnabled()) { tabGroup.addTab(debugTab); }
+
+        // Don't show as navigation options, but allow linking
+        extractorSettingsPanel = createExtractorSubpanel();
+        extractorSettingsTab = new MaterialTab("Extractor Notifications", tabGroup, extractorSettingsPanel);
+        tabGroup.addTab(extractorSettingsTab);
+
+        idleSettingsPanel = createIdleSubpanel();
+        idleSettingsTab = new MaterialTab("Idle Notifications", tabGroup, idleSettingsPanel);
+        tabGroup.addTab(idleSettingsTab);
 
         tabGroupPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         tabGroupPanel.setBorder(new EmptyBorder(0, 5, 0, 0));
@@ -164,6 +208,21 @@ public class SalvagingHelperPanel extends PluginPanel {
         tabGroupPanel.add(generalTab);
         tabGroupPanel.add(lootTab);
         tabGroupPanel.add(debugTab);
+        debugTab.setVisible(config.debugModeEnabled());
+
+
+        debugTab.setOnSelectEvent(() -> {
+            debugTab.setIcon(ICON_BUG);
+            return true;
+        });
+        generalTab.setOnSelectEvent(() -> {
+            debugTab.setIcon(ICON_BUG_INACTIVE);
+            return true;
+        });
+        lootTab.setOnSelectEvent(() -> {
+            debugTab.setIcon(ICON_BUG_INACTIVE);
+            return true;
+        });
 
         container.add(tabGroupPanel, BorderLayout.NORTH);
         container.add(displayPanel, BorderLayout.CENTER);
@@ -183,15 +242,16 @@ public class SalvagingHelperPanel extends PluginPanel {
         JPanel generalSettingsContainer = new JPanel();
         generalSettingsContainer.setBorder(doubleBorder);
         generalSettingsContainer.setLayout(new BoxLayout(generalSettingsContainer, BoxLayout.Y_AXIS));
-        generalSettingsContainer.add(createSettingsCheckbox("drawShipwreckRadius"));
-        generalSettingsContainer.add(createSettingsCheckbox("drawHookLocation"));
-        generalSettingsContainer.add(createSettingsCheckbox("enableLootOverlays"));
-        generalSettingsContainer.add(createSettingsCheckbox("swapInvItemOptions"));
-        generalSettingsContainer.add(createSettingsCheckbox("idleAlerts"));
-        generalSettingsContainer.add(createSettingsCheckbox("extractorAlerts"));
-        generalSettingsContainer.add(createSettingsCheckbox("hideCrewmateOverhead"));
-        generalSettingsContainer.add(createSettingsCheckbox("hideOthersCrewmateOverhead"));
-        JPanel generalSettingsHeader = createSettingsHeader("Plugin modules", ICON_PLUGIN, generalSettingsContainer, true);
+        generalSettingsContainer.add(createSettingsCheckbox("drawShipwreckRadius", null));
+        generalSettingsContainer.add(createSettingsCheckbox("drawHookLocation", null));
+        generalSettingsContainer.add(createSettingsCheckbox("enableLootOverlays", null));
+        generalSettingsContainer.add(createSettingsCheckbox("swapInvItemOptions", null));
+        generalSettingsContainer.add(createSettingsCheckbox("idleAlerts", createSettingsLinkButton(4)));
+        generalSettingsContainer.add(createSettingsCheckbox("extractorAlerts", createSettingsLinkButton(3)));
+        generalSettingsContainer.add(createSettingsCheckbox("hideCrewmateOverhead", null));
+        generalSettingsContainer.add(createSettingsCheckbox("hideOthersCrewmateOverhead", null));
+        JPanel generalSettingsHeader = createSettingsHeader("Plugin modules", ICON_PLUGIN, generalSettingsContainer,
+                true, null, null, null);
 
         JPanel salvageModeDropdownContainer = new JPanel();
         salvageModeDropdownContainer.setBorder(new EmptyBorder(1, 1, 1, 1));
@@ -215,28 +275,31 @@ public class SalvagingHelperPanel extends PluginPanel {
         salvageModeDropdownContainer.add(salvageModeIcon);
         salvageModeDropdownContainer.add(Box.createRigidArea(new Dimension(4, 1)));
         salvageModeDropdownContainer.add(salvageModeComboBox);
-
+        configWidgetMap.put("salvageMode", salvageModeComboBox);
+        configTypeMap.put("salvageMode", SalvageMode.class);
 
         JPanel salvagingModeContainer = new JPanel();
         salvagingModeContainer.setLayout(new BoxLayout(salvagingModeContainer, BoxLayout.Y_AXIS));
         salvagingModeContainer.setBorder(doubleBorder);
         salvagingModeContainer.add(salvageModeDropdownContainer);
-        salvagingModeContainer.add(createSettingsCheckbox("dropAllSalvage"));
-        salvagingModeContainer.add(createSettingsCheckbox("minMaxHookUptime"));
-        salvagingModeContainer.add(createSettingsCheckbox("cargoBeforeSort"));
-        salvagingModeContainer.add(createSettingsCheckbox("dockOnFull"));
-        JPanel salvagingModeHeader = createSettingsHeader("Salvaging strategy", ICON_HOOK, salvagingModeContainer, true);
+        salvagingModeContainer.add(createSettingsCheckbox("dropAllSalvage", null));
+        salvagingModeContainer.add(createSettingsCheckbox("minMaxHookUptime", null));
+        salvagingModeContainer.add(createSettingsCheckbox("cargoBeforeSort", null));
+        //salvagingModeContainer.add(createSettingsCheckbox("dockOnFull", null));
+        JPanel salvagingModeHeader = createSettingsHeader("Salvaging strategy", ICON_HOOK, salvagingModeContainer,
+                true, null, null, null);
 
         // Overrides
         JPanel overrideSettingsContainer = new JPanel();
         overrideSettingsContainer.setBorder(doubleBorder);
         overrideSettingsContainer.setLayout(new BoxLayout(overrideSettingsContainer, BoxLayout.Y_AXIS));
-        overrideSettingsContainer.add(createSettingsCheckbox("hideGroundItems"));
-        overrideSettingsContainer.add(createSettingsCheckbox("hideCrewmateLeftClick"));
-        overrideSettingsContainer.add(createSettingsCheckbox("hideFacilityLeftClick"));
-        overrideSettingsContainer.add(createSettingsCheckbox("hideShipwreckInspect"));
-        overrideSettingsContainer.add(createSettingsCheckbox("hideNpcInteract"));
-        JPanel overrideSettingsHeader = createSettingsHeader("Overrides", ICON_SWAP, overrideSettingsContainer, true);
+        overrideSettingsContainer.add(createSettingsCheckbox("hideGroundItems", null));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideCrewmateLeftClick", null));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideFacilityLeftClick", null));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideShipwreckInspect", null));
+        overrideSettingsContainer.add(createSettingsCheckbox("hideNpcInteract", null));
+        JPanel overrideSettingsHeader = createSettingsHeader("Overrides", ICON_SWAP, overrideSettingsContainer,
+                true, null, null, null);
 
         // Loot colors
         JPanel lootColorContainer = new JPanel();
@@ -254,7 +317,8 @@ public class SalvagingHelperPanel extends PluginPanel {
         }
         lootColorContainer.add(createLootColorResetButtonPanel());
 
-        JPanel lootColorHeader = createSettingsHeader("Loot underlays", ICON_COLOR, lootColorContainer, true);
+        JPanel lootColorHeader = createSettingsHeader("Loot underlays", ICON_COLOR, lootColorContainer,
+                true, null, null, null);
 
         generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
         generalContainer.add(generalSettingsHeader);
@@ -265,6 +329,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
         generalContainer.add(overrideSettingsHeader);
         generalContainer.add(overrideSettingsContainer);
+        generalContainer.add(Box.createRigidArea(new Dimension(1, 4)));
         generalContainer.add(lootColorHeader);
         generalContainer.add(lootColorContainer);
 
@@ -426,6 +491,21 @@ public class SalvagingHelperPanel extends PluginPanel {
         });
         debugContainer.add(dumpLootContainers);
 
+        JButton dumpSettingsRows = new JButton("Dump color gui stats");
+        dumpSettingsRows.addActionListener(e -> {
+            clientThread.invokeLater(() -> {
+                for (Component c : extractorSettingsPanel.getComponents()) {
+                    plugin.sendChatMessage(c.getBounds().toString()+", "+c.toString(), false);
+                    if (c instanceof JPanel) {
+                        for (Component m : ((JPanel) c).getComponents()){
+                            plugin.sendChatMessage(m.getBounds().toString()+", "+m.toString(), false);
+                        }
+                    }
+                }
+            });
+        });
+        debugContainer.add(dumpSettingsRows);
+
 
 
 
@@ -492,7 +572,7 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         contentPanel.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setMinimumSize(new Dimension(223, 500));
+        //contentPanel.setMinimumSize(new Dimension(223, 500));
 
         //region Call "Create Salvage Panels" and Add
         for (SalvageType salvageType : SalvageType.values()) {
@@ -619,9 +699,8 @@ public class SalvagingHelperPanel extends PluginPanel {
             model.addAll(optionSet);
             JComboBox<LootOption> comboBox = new JComboBox<>(model);
             comboBox.setSelectedItem(lootItem.getLootCategory());
-            comboBox.setPreferredSize(new Dimension(86, 26));
+            comboBox.setPreferredSize(new Dimension(90, 26));
             comboBox.setFont(FontManager.getRunescapeSmallFont());
-
 
             itemToComboBox.put(itemId, comboBox);
             comboBox.addActionListener(event -> {
@@ -655,7 +734,9 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         return containerPanel;
     }
+    //endregion
 
+    //region Build: Loot Container Panel
     public JPanel createLootContainerPanel() {
         JPanel lootContainerContainer = new JPanel();
         lootContainerContainer.setLayout(new BoxLayout(lootContainerContainer, BoxLayout.Y_AXIS));
@@ -674,7 +755,6 @@ public class SalvagingHelperPanel extends PluginPanel {
             containerButton.setPreferredSize(new Dimension(32, 32));
 
             Boolean enabled = Boolean.parseBoolean(plugin.getConfigByKey(configKey, String.class));
-                    //configManager.getConfiguration();
 
             if (enabled) {
                 containerButton.setBackground(CONTAINER_BUTTON_ENABLED);
@@ -704,52 +784,169 @@ public class SalvagingHelperPanel extends PluginPanel {
             containerSectionIconContainer.add(containerButton);
 
         }
-
-        //JPanel containerSectionTitle = createSettingsHeader("Loot Container Configuration", null, containerSectionIconContainer, true);
-
-        //lootContainerContainer.add(containerSectionTitle);
         lootContainerContainer.add(containerSectionIconContainer);
-
         return lootContainerContainer;
     }
     //endregion
 
 
-    //region Settings Builders
+    //region Settings - Checkbox
 
-    public JPanel createSettingsCheckbox(String configKey) {
+    public JPanel createSettingsCheckbox(String configKey, JLabel settingsLinkButton) {
         JPanel settingsContainer = new JPanel(new BorderLayout());
         settingsContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
         settingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         JLabel settingName = new JLabel();
+        JPanel checkBoxContainer = new JPanel();
+        checkBoxContainer.setLayout(new BoxLayout(checkBoxContainer, BoxLayout.X_AXIS));
+        if (settingsLinkButton != null) {
+            checkBoxContainer.add(settingsLinkButton);
+            checkBoxContainer.add(Box.createRigidArea(new Dimension(2, 2)));
+        }
         JCheckBox checkBox = new JCheckBox();
 
-        Collection<ConfigItemDescriptor> configItems = configManager.getConfigDescriptor(config).getItems();
-        for (ConfigItemDescriptor itemDesc : configItems) {
-            if (itemDesc.key().equals(configKey)) {
-                ConfigItem item = itemDesc.getItem();
-                settingName.setText(item.name());
-                settingName.setToolTipText(item.description());
-                checkBox.setSelected(Boolean.parseBoolean(configManager.getConfiguration("salvagingHelper", configKey)));
-            }
-        }
+        ConfigItem item = getConfigItem(configKey);
+        settingName.setText(item != null ? item.name() : "");
+        settingName.setToolTipText(item != null ? item.description() : "");
+        checkBox.setSelected(Boolean.parseBoolean(configManager.getConfiguration("salvagingHelper", configKey)));
 
         checkBox.addItemListener(e -> {
-            if (e.getStateChange()==ItemEvent.SELECTED) {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
                 configManager.setConfiguration("salvagingHelper", configKey, true);
-            } else if (e.getStateChange()==ItemEvent.DESELECTED) {
+            } else if (e.getStateChange() == ItemEvent.DESELECTED) {
                 configManager.setConfiguration("salvagingHelper", configKey, false);
             }
         });
 
+        checkBoxContainer.add(checkBox);
+
         settingsContainer.add(settingName, BorderLayout.WEST);
-        settingsContainer.add(checkBox, BorderLayout.EAST);
+        settingsContainer.add(checkBoxContainer, BorderLayout.EAST);
+
+        configWidgetMap.put(configKey, checkBox);
+        configTypeMap.put(configKey, Boolean.class);
 
         return settingsContainer;
     }
 
-    public JPanel createSettingsHeader(String label, ImageIcon icon, JPanel childPanel, Boolean shouldCollapse) {
+    //endregion
+
+    //region Settings - Enum Combobox
+    @SuppressWarnings("unchecked")
+    private <T extends Enum<T>> JPanel createSettingsCombobox(String configKey, Class<T> enumType) {
+        JPanel comboBoxSettingsContainer = new JPanel(new BorderLayout());
+        comboBoxSettingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        comboBoxSettingsContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
+
+        DefaultComboBoxModel<T> model = new DefaultComboBoxModel<>();
+        for (T enumValue : enumType.getEnumConstants()) {
+            model.addElement(enumValue);
+        }
+
+        JComboBox<T> settingComboBox = new JComboBox<>(model);
+        settingComboBox.setSelectedItem(plugin.getConfigByKey(configKey, enumType));
+        settingComboBox.setMinimumSize(new Dimension(90, 22));
+
+        settingComboBox.addActionListener(event -> {
+            T selectedOption = (T) settingComboBox.getSelectedItem();
+            if (selectedOption != plugin.getConfigByKey(configKey, enumType)) {
+                plugin.setConfigByKey(configKey, selectedOption);
+            }
+        });
+
+        Collection<ConfigItemDescriptor> itemDescriptors = configManager.getConfigDescriptor(config).getItems();
+        ConfigItem configItem = itemDescriptors.stream().map(ConfigItemDescriptor::getItem).filter(k ->
+                k.keyName().equals(configKey)).findFirst().orElse(null);
+
+        if (configItem != null) {
+            JLabel comboSettingsBoxTitle = new JLabel(configItem.name());
+            comboSettingsBoxTitle.setToolTipText(configItem.description());
+            comboBoxSettingsContainer.add(comboSettingsBoxTitle, BorderLayout.WEST);
+        }
+
+        // ComboBox won't size correctly unless we put it in its own unnecessary BoxLayout container, as BorderLayout
+        // doesn't respect preferredSize or minSize
+        JPanel comboBoxContainer = new JPanel();
+        comboBoxContainer.setLayout(new BoxLayout(comboBoxContainer, BoxLayout.X_AXIS));
+        comboBoxContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        if (enumType != FlashNotification.class) {
+            comboBoxContainer.setPreferredSize(new Dimension(90, 22));
+        }
+        comboBoxContainer.add(settingComboBox);
+
+        comboBoxSettingsContainer.add(comboBoxContainer, BorderLayout.EAST);
+
+        configWidgetMap.put(configKey, settingComboBox);
+        configTypeMap.put(configKey, enumType);
+
+        return comboBoxSettingsContainer;
+    }
+    //endregion
+
+    //region Settings - Integer Spinner
+
+    // ConfigItemDescriptor:
+    //      units=@net.runelite.client.config.Units(value="%") [%]
+    //      type=int
+    //      range=@net.runelite.client.config.Range(max=100, min=0)
+    //      range=@net.runelite.client.config.Range(max=2147483647, min=-1)
+    private JPanel createRangeSpinnerField(String configKey) {
+        JPanel settingsContainer = new JPanel(new BorderLayout());
+        settingsContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
+        settingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        ConfigItemDescriptor configDesc = getConfigItemDescriptor(configKey);
+        ConfigItem item = (configDesc != null) ? configDesc.getItem() : null;
+        Range range = (configDesc != null) ? configDesc.getRange() : null;
+
+        JLabel settingName = new JLabel(item != null ? item.name() : "");
+        settingName.setToolTipText(item != null ? item.description() : "");
+
+        JPanel settingsFieldContainer = new JPanel();
+        settingsFieldContainer.setLayout(new BoxLayout(settingsFieldContainer, BoxLayout.X_AXIS));
+        settingsFieldContainer.setPreferredSize(new Dimension(90, 22));
+
+
+        SpinnerNumberModel spinnerModel = new SpinnerNumberModel(
+                (int) plugin.getConfigByKey(configKey, Integer.class),
+                (range != null) ? range.min() : 0,
+                (range != null) ? range.max() : Integer.MAX_VALUE,
+                1
+        );
+
+        JSpinner spinner = new JSpinner(spinnerModel);
+        DecimalFormat fmt;
+        if (configDesc != null && configDesc.getUnits() != null && configDesc.getUnits().value().equals("%")) {
+            fmt = new DecimalFormat("###'%'");
+            fmt.setMultiplier(1); // Don't nuke our values if we want to show a percentage
+        } else {
+            fmt = new DecimalFormat("###");
+        }
+
+        JSpinner.NumberEditor fieldEditor = new JSpinner.NumberEditor(spinner, fmt.toPattern());
+        spinner.setEditor(fieldEditor);
+
+        spinner.addChangeListener(e -> {
+            plugin.setConfigByKey(configKey, spinner.getValue());
+        });
+
+        settingsFieldContainer.add(spinner);
+
+        settingsContainer.add(settingName, BorderLayout.WEST);
+        settingsContainer.add(settingsFieldContainer, BorderLayout.EAST);
+
+        configWidgetMap.put(configKey, spinner);
+        configTypeMap.put(configKey, Integer.class);
+
+        return settingsContainer;
+    }
+
+    //endregion
+
+    //region Settings - Header
+    private JPanel createSettingsHeader(String label, ImageIcon icon, JPanel childPanel, Boolean shouldCollapse,
+                                        JButton backButton, JButton testNotificationButton, JButton resetButton) {
 
         // settingsHeaderContainer <- (iconTitlePanel, dropdown)
         //                                    |
@@ -757,7 +954,7 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         JPanel settingsHeaderContainer = new JPanel(new BorderLayout());
         settingsHeaderContainer.setBorder(new EmptyBorder(4, 7, 4, 4));
-        settingsHeaderContainer.setPreferredSize(new Dimension(-1, 28)); // or SIDEBAR_MINUS_SCROLL?
+        settingsHeaderContainer.setPreferredSize(new Dimension(-1, 28));
         settingsHeaderContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         JPanel iconTitlePanel = new JPanel();
@@ -765,12 +962,30 @@ public class SalvagingHelperPanel extends PluginPanel {
         titleLabel.setFont(FontManager.getRunescapeBoldFont());
         titleLabel.setForeground(Color.WHITE);
         iconTitlePanel.setLayout(new BoxLayout(iconTitlePanel, BoxLayout.X_AXIS));
+        iconTitlePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
+        JPanel configButtonsContainer = new JPanel();
+        configButtonsContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        configButtonsContainer.setLayout(new BoxLayout(configButtonsContainer, BoxLayout.X_AXIS));
+
+        if (backButton != null) {
+            iconTitlePanel.add(backButton);
+            iconTitlePanel.add(Box.createRigidArea(new Dimension(5, 1)));
+        }
+        if (resetButton != null) {
+            configButtonsContainer.add(resetButton);
+            configButtonsContainer.add(Box.createRigidArea(new Dimension(3, 1)));
+        }
+        if (testNotificationButton != null) {
+            configButtonsContainer.add(testNotificationButton);
+            configButtonsContainer.add(Box.createRigidArea(new Dimension(3, 1)));
+        }
         if (icon != null) {
             JLabel iconLabel = new JLabel(icon);
             iconTitlePanel.add(iconLabel);
             iconTitlePanel.add(Box.createRigidArea(new Dimension(5, 1)));
         }
+
         iconTitlePanel.add(titleLabel);
 
         if (shouldCollapse) {
@@ -779,37 +994,250 @@ public class SalvagingHelperPanel extends PluginPanel {
             dropdown.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent mouseEvent) {
-                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED_HOVER ? ICON_DROPDOWN_CLICKED : ICON_DROPDOWN_UNCLICKED );
+                    dropdown.setIcon(childPanel.isVisible() ? ICON_DROPDOWN_CLICKED_PRESSED : ICON_DROPDOWN_UNCLICKED_PRESSED);
                 }
 
                 @Override
                 public void mouseReleased(MouseEvent e) {
                     childPanel.setVisible(!childPanel.isVisible());
-                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED ? ICON_DROPDOWN_UNCLICKED : ICON_DROPDOWN_CLICKED );
+                    dropdown.setIcon(childPanel.isVisible() ? ICON_DROPDOWN_CLICKED_HOVER : ICON_DROPDOWN_UNCLICKED_HOVER);
                 }
 
                 @Override
                 public void mouseEntered(MouseEvent e) {
-                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED ? ICON_DROPDOWN_CLICKED_HOVER : ICON_DROPDOWN_UNCLICKED_HOVER );
+                    dropdown.setIcon(childPanel.isVisible() ? ICON_DROPDOWN_CLICKED_HOVER : ICON_DROPDOWN_UNCLICKED_HOVER);
                 }
 
                 @Override
                 public void mouseExited(MouseEvent e) {
-                    dropdown.setIcon( dropdown.getIcon()==ICON_DROPDOWN_CLICKED_HOVER ? ICON_DROPDOWN_CLICKED : ICON_DROPDOWN_UNCLICKED );
+                    dropdown.setIcon(childPanel.isVisible() ? ICON_DROPDOWN_CLICKED : ICON_DROPDOWN_UNCLICKED);
+
                 }
             });
-            settingsHeaderContainer.add(dropdown, BorderLayout.EAST);
+            configButtonsContainer.add(dropdown);
         }
 
+        settingsHeaderContainer.add(configButtonsContainer, BorderLayout.EAST);
         settingsHeaderContainer.add(iconTitlePanel, BorderLayout.WEST);
 
         return settingsHeaderContainer;
     }
+    //endregion
 
+    //region Settings - Subpanels
+
+    private JPanel createExtractorSubpanel() {
+        //JPanel extractorSettingsContainer = extendedSettingsPanel(generalTab, "Extractor Notifications");
+        JPanel extractorSettingsContainer = new JPanel();
+        extractorSettingsContainer.setLayout(new BoxLayout(extractorSettingsContainer, BoxLayout.Y_AXIS));
+        extractorSettingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        extractorSettingsContainer.setBorder(doubleBorder);
+        extractorSettingsContainer.add(createSettingsCombobox("extractorScreenFlashType", FlashNotification.class));
+        extractorSettingsContainer.add(createItemColorSelector("extractorFlashColor"));
+        extractorSettingsContainer.add(createSettingsCombobox("extractorTrayType", TrayIcon.MessageType.class));
+        extractorSettingsContainer.add(createSettingsCombobox("extractorFocusType", RequestFocusType.class));
+        extractorSettingsContainer.add(createSettingsCombobox("extractorAlertSound", NotificationSound.class));
+        extractorSettingsContainer.add(createRangeSpinnerField("extractorCustomSound"));
+        extractorSettingsContainer.add(createRangeSpinnerField("extractorAlertVolume"));
+        extractorSettingsContainer.add(createSettingsCheckbox("extractorAlertWhileFocused", null));
+
+        List<String> configKeys = List.of("extractorScreenFlashType", "extractorFlashColor", "extractorTrayType", "extractorFocusType",
+                "extractorAlertSound", "extractorCustomSound", "extractorAlertVolume", "extractorAlertWhileFocused");
+
+        JPanel topLevelContainer = new JPanel();
+        topLevelContainer.setLayout(new BoxLayout(topLevelContainer, BoxLayout.Y_AXIS));
+        topLevelContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        //topLevelContainer.setBorder(doubleBorder);
+
+        JButton backButton = createBackButton(generalTab);
+        JButton testButton = createTestNotificationButton("extractor");
+        JPanel header = createSettingsHeader("Extractor Alerts", null, extractorSettingsContainer,
+                false, backButton, testButton, createResetSettingsButton(configKeys));
+
+        topLevelContainer.add(Box.createRigidArea(new Dimension(1, 4)));
+        topLevelContainer.add(header);
+        topLevelContainer.add(extractorSettingsContainer);
+
+        return topLevelContainer;
+    }
+
+    private JPanel createIdleSubpanel() {
+        JPanel idleSettingsContainer = new JPanel();
+        idleSettingsContainer.setLayout(new BoxLayout(idleSettingsContainer, BoxLayout.Y_AXIS));
+        idleSettingsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        idleSettingsContainer.setBorder(doubleBorder);
+
+        idleSettingsContainer.add(createSettingsCombobox("idleScreenFlashType", FlashNotification.class));
+        idleSettingsContainer.add(createItemColorSelector("idleFlashColor"));
+        idleSettingsContainer.add(createSettingsCombobox("idleTrayType", TrayIcon.MessageType.class));
+        idleSettingsContainer.add(createSettingsCombobox("idleFocusType", RequestFocusType.class));
+        idleSettingsContainer.add(createSettingsCombobox("idleAlertSound", NotificationSound.class));
+        idleSettingsContainer.add(createRangeSpinnerField("idleCustomSound"));
+        idleSettingsContainer.add(createRangeSpinnerField("idleAlertVolume"));
+        idleSettingsContainer.add(createSettingsCheckbox("idleAlertWhileFocused", null));
+
+        List<String> configKeys = List.of("idleScreenFlashType", "idleFlashColor", "idleTrayType", "idleFocusType",
+                "idleAlertSound", "idleCustomSound", "idleAlertVolume", "idleAlertWhileFocused");
+
+        JPanel topLevelContainer = new JPanel();
+        topLevelContainer.setLayout(new BoxLayout(topLevelContainer, BoxLayout.Y_AXIS));
+        topLevelContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        JButton backButton = createBackButton(generalTab);
+        JButton testButton = createTestNotificationButton("idle");
+        JPanel header = createSettingsHeader("Idle Alerts", null, idleSettingsContainer, false,
+                backButton, testButton, createResetSettingsButton(configKeys));
+
+        topLevelContainer.add(Box.createRigidArea(new Dimension(1, 4)));
+        topLevelContainer.add(header);
+        topLevelContainer.add(idleSettingsContainer);
+
+        return topLevelContainer;
+    }
+
+
+
+    //endregion
+
+    //region Settings Buttons
+    private JButton createTestNotificationButton(String type) {
+        JButton containerButton = new JButton(ICON_TEST);
+        containerButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        containerButton.setToolTipText("Fire a notification to test your changes.");
+
+        containerButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                containerButton.setIcon(ICON_TEST_PRESSED);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                containerButton.setIcon(ICON_TEST);
+                if (type.equals("extractor")){
+                    plugin.sendExtractorNotification();
+                } else if (type.equals("idle")){
+                    plugin.sendIdleNotification("Test");
+                }
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                containerButton.setIcon(ICON_TEST_HOVER);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                containerButton.setIcon(ICON_TEST);
+            }
+        });
+
+
+        return containerButton;
+    }
+
+    private JButton createBackButton(MaterialTab targetPanel) {
+        JButton backButton = new JButton(ICON_BACK);
+        backButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                backButton.setIcon(ICON_BACK_PRESSED);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                backButton.setIcon(ICON_BACK);
+                tabGroup.select(targetPanel);
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                backButton.setIcon(ICON_BACK_HOVER);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                backButton.setIcon(ICON_BACK);
+            }
+        });
+        return backButton;
+    }
+
+    private JLabel createSettingsLinkButton(int tabGroupIndex) {
+        JLabel linkButton = new JLabel(ICON_SETTINGS);
+
+        linkButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                linkButton.setIcon(ICON_SETTINGS_PRESSED);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                linkButton.setIcon(ICON_SETTINGS);
+                // TODO - fix this eventually, but right now i cba to fix load order issues
+                tabGroup.select(tabGroup.getTab(tabGroupIndex));
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                linkButton.setIcon(ICON_SETTINGS_HOVER);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                linkButton.setIcon(ICON_SETTINGS);
+            }
+        });
+
+        return linkButton;
+    }
+
+    private JButton createResetSettingsButton(List<String> settingsToReset) {
+        JButton resetButton = new JButton(ICON_UNSET);
+        resetButton.setToolTipText("Reset these settings to plugin default");
+
+        resetButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                resetButton.setIcon(ICON_UNSET_PRESSED);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                resetButton.setIcon(ICON_UNSET_HOVER);
+                int clickedOption = JOptionPane.showConfirmDialog(SwingUtilities.getWindowAncestor(resetButton),
+                        "Are you sure you want to reset these settings to plugin defaults? This is not reversible.",
+                        "Confirm reset", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+                if (clickedOption==JOptionPane.OK_OPTION) {
+                    for (String configKey : settingsToReset) {
+                        //plugin.sendChatMessage("Resetting via button: "+configKey, false);
+                        reset(configKey);
+                    }
+                }
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                resetButton.setIcon(ICON_UNSET_HOVER);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                resetButton.setIcon(ICON_UNSET);
+            }
+        });
+
+        return resetButton;
+    }
+    //endregion
+
+
+    //region Settings - Loot Colors and Pickers
     public JPanel createLootColorResetButtonPanel(){
         JPanel container = new JPanel(new BorderLayout());
-        container.setBorder(new EmptyBorder(2, 2, 2, 2));
-        JButton resetButton = new JButton("Reset to default");
+        container.setBorder(new EmptyBorder(1, 3, 1, 3));
+        JButton resetButton = new JButton("Reset colors to default");
         resetButton.setFont(FontManager.getRunescapeFont());
         resetButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
         resetButton.setForeground(Color.WHITE);
@@ -836,7 +1264,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         String loadColorString = getColorString(loadColor);
 
         JPanel colorSelectorContainer = new JPanel(new BorderLayout());
-        colorSelectorContainer.setBorder(new EmptyBorder(2, 2, 2, 2));
+        colorSelectorContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
         colorSelectorContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
         colorSelectorContainer.setFont(FontManager.getRunescapeFont());
 
@@ -868,9 +1296,57 @@ public class SalvagingHelperPanel extends PluginPanel {
         colorSelectorContainer.add(nameLabel, BorderLayout.WEST);
         colorSelectorContainer.add(colorButton, BorderLayout.EAST);
 
+        configWidgetMap.put(configKey, colorButton);
+        configTypeMap.put(configKey, Color.class);
+
         return colorSelectorContainer;
     }
-    //endregion
+
+    public JPanel createItemColorSelector(String configKey){
+
+        ConfigItem configItem = getConfigItem(configKey);
+        String configName = configItem.name();
+        String configDesc = configItem.description();
+        Color loadColor = plugin.getConfigByKey(configKey, Color.class);
+        String loadColorString = getColorString(loadColor);
+
+        JPanel colorSelectorContainer = new JPanel(new BorderLayout());
+        colorSelectorContainer.setBorder(new EmptyBorder(1, 3, 1, 3));
+        colorSelectorContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        colorSelectorContainer.setFont(FontManager.getRunescapeFont());
+
+        JLabel nameLabel = new JLabel(configName);
+        nameLabel.setToolTipText(configDesc);
+
+        JButton colorButton = new JButton(loadColorString);
+
+        colorButton.setBackground(loadColor);
+        colorButton.setForeground(legibleFontColorFor(loadColor));
+        colorButton.setToolTipText(configDesc);
+        colorButton.setPreferredSize(new Dimension(108, 22));
+
+        colorButton.addActionListener(e -> {
+            SwingUtilities.invokeLater( () -> {
+                RuneliteColorPicker colorPickerPopup = colorPickerManager.create(client, colorButton.getBackground(),
+                        "Choose new color", false);
+                colorPickerPopup.setOnClose(newColor -> {
+                    colorButton.setBackground(newColor);
+                    colorButton.setForeground(legibleFontColorFor(newColor));
+                    colorButton.setText(getColorString(newColor));
+                    plugin.setConfigByKey(configKey, newColor);
+                });
+                colorPickerPopup.setVisible(true);
+            });
+        });
+
+        configWidgetMap.put(configKey, colorButton);
+        configTypeMap.put(configKey, Color.class);
+
+        colorSelectorContainer.add(nameLabel, BorderLayout.WEST);
+        colorSelectorContainer.add(colorButton, BorderLayout.EAST);
+
+        return colorSelectorContainer;
+    }
 
     public String getColorString(Color color){
         return String.format("#%02X%02X%02X%02X", color.getRed(), color.getBlue(), color.getGreen(), color.getAlpha());
@@ -894,24 +1370,138 @@ public class SalvagingHelperPanel extends PluginPanel {
         return (0.2126*rC + 0.7152*gC + 0.0722*bC);
     }
 
+
+
+    private Color getLootColorByOption(LootOption lootOption) {
+        if (lootOption==LootOption.KEEP) {
+            return config.keepColor();
+        } else if (lootOption==LootOption.DROP) {
+            return config.dropColor();
+        } else if (lootOption==LootOption.CONTAINER) {
+            return config.containerColor();
+        } else if (lootOption==LootOption.ALCH) {
+            return config.alchColor();
+        } else if (lootOption==LootOption.CONSUME) {
+            return config.consumeColor();
+        } else if (lootOption==LootOption.EQUIP) {
+            return config.equipColor();
+        } else if (lootOption==LootOption.PROCESS) {
+            return config.processColor();
+        } else if (lootOption==LootOption.CARGO_HOLD) {
+            return config.cargoHoldColor();
+        } else if (lootOption==LootOption.OTHER) {
+            return config.otherColor();
+        } else {
+            return null;
+        }
+    }
+
+    private Color getColor(LootOption lootOption) {
+        return plugin.getConfigByKey(lootOption.getColorConfigKey(), Color.class);
+    }
+
+    private void setColor(LootOption lootOption, Color newColor) {
+        plugin.setConfigByKey(lootOption.getColorConfigKey(), newColor);
+    }
+    //endregion
+
+    //region Config Helpers
+
+    private ConfigItem getConfigItem(String configKey) {
+        Collection<ConfigItemDescriptor> configItems = configManager.getConfigDescriptor(config).getItems();
+        for (ConfigItemDescriptor itemDesc : configItems) {
+            if (itemDesc.key().equals(configKey)) {
+                return itemDesc.getItem();
+            }
+        }
+        return null;
+    }
+
+    private ConfigItemDescriptor getConfigItemDescriptor(String configKey) {
+        Collection<ConfigItemDescriptor> configItems = configManager.getConfigDescriptor(config).getItems();
+        for (ConfigItemDescriptor itemDesc : configItems) {
+            if (itemDesc.key().equals(configKey)) {
+                return itemDesc;
+            }
+        }
+        return null;
+    }
+
+    private void reset(String configKey) {
+        ConfigItemDescriptor configDesc = getConfigItemDescriptor(configKey);
+        Type settingType = (configDesc != null) ? configDesc.getType(): null;
+
+        if (settingType == Color.class) {
+            Color oldColor = plugin.getConfigByKey(configKey, Color.class);
+            Color defaultColor = getDefaultAndClear(configKey, Color.class);
+            if (defaultColor != null && !defaultColor.equals(oldColor) && configWidgetMap.get(configKey) instanceof JButton){
+                JButton associatedButton = (JButton) configWidgetMap.get(configKey);
+                associatedButton.setBackground(defaultColor);
+                associatedButton.setForeground(legibleFontColorFor(defaultColor));
+                associatedButton.setText(getColorString(defaultColor));
+            }
+        }
+
+        else if (settingType == Integer.class || settingType == int.class) {
+            int oldInt = plugin.getConfigByKey(configKey, Integer.class);
+            int defaultInt = getDefaultAndClear(configKey, Integer.class);
+            if (defaultInt != oldInt && configWidgetMap.get(configKey) instanceof JSpinner) {
+                JSpinner spinner = (JSpinner) configWidgetMap.get(configKey);
+                spinner.setValue(defaultInt);
+            }
+        }
+
+        else if (settingType == Boolean.class || settingType == boolean.class) {
+            Boolean oldValue = plugin.getConfigByKey(configKey, Boolean.class);
+            Boolean defaultValue = getDefaultAndClear(configKey, Boolean.class);
+            if (!oldValue.equals(defaultValue) && configWidgetMap.get(configKey) instanceof JCheckBox) {
+                JCheckBox checkBox = (JCheckBox) configWidgetMap.get(configKey);
+                checkBox.setSelected(defaultValue);
+            }
+        }
+
+        else if (settingType == FlashNotification.class || settingType == RequestFocusType.class ||
+                settingType == NotificationSound.class || settingType == TrayIcon.MessageType.class) {
+            Enum oldValue = plugin.getConfigByKey(configKey, settingType);
+            Enum defaultValue = getDefaultAndClear(configKey, settingType);
+            if (!oldValue.equals(defaultValue) && configWidgetMap.get(configKey) instanceof JComboBox) {
+                JComboBox<Enum<?>> comboBox = (JComboBox) configWidgetMap.get(configKey);
+                comboBox.setSelectedItem(defaultValue);
+            }
+        }
+
+        else {
+            plugin.sendChatMessage("Uncaught type to reset: "+settingType.toString(), false);
+            configManager.unsetConfiguration("salvagingHelper", configKey);
+        }
+    }
+
     private void resetLootColors() {
         for (LootOption lootOption : LootOption.values()) {
-
-            JButton colorButton = lootColorButtonMap.get(lootOption);
-            String configKey = lootOption.getColorConfigKey();
-            Color oldColor = plugin.getConfigByKey(configKey, Color.class);
-
-            configManager.unsetConfiguration("salvagingHelper", configKey);
-            Color newColor = getLootColorByOption(lootOption);
-
-            if (newColor!=null && !newColor.equals(oldColor)){
-                colorButton.setBackground(newColor);
-                colorButton.setForeground(legibleFontColorFor(newColor));
-                colorButton.setText(getColorString(newColor));
-            }
+            reset(lootOption.getColorConfigKey());
         }
         plugin.actionHandler.setInventoryWasUpdated(true);
     }
+
+    // Must unset config before calling
+    @SuppressWarnings("unchecked")
+    private <T> T getDefaultAndClear(String configKey, Type T) {
+        configManager.unsetConfiguration("salvagingHelper", configKey);
+        try {
+            return (T) SalvagingHelperConfig.class.getDeclaredMethod(configKey, (Class<?>[]) null).invoke(config, (Object[]) null);
+        } catch (NoSuchMethodException e) {
+            plugin.sendChatMessage("Failed config method lookup for: "+configKey, false);
+        } catch (IllegalAccessException e) {
+            plugin.sendChatMessage("No config method access for: "+configKey, false);
+        } catch (IllegalArgumentException e) {
+            plugin.sendChatMessage("Illegal 'invoke' args for: "+configKey, false);
+        } catch (InvocationTargetException e) {
+            plugin.sendChatMessage("Invocation target exception for: "+configKey, false);
+        }
+        return null;
+    }
+
+    //endregion
 
     public void setItemCategory(int itemId, LootOption lootCategory) {
 
@@ -999,35 +1589,5 @@ public class SalvagingHelperPanel extends PluginPanel {
         }
     }
 
-    private Color getLootColorByOption(LootOption lootOption) {
-        if (lootOption==LootOption.KEEP) {
-            return config.keepColor();
-        } else if (lootOption==LootOption.DROP) {
-            return config.dropColor();
-        } else if (lootOption==LootOption.CONTAINER) {
-            return config.containerColor();
-        } else if (lootOption==LootOption.ALCH) {
-            return config.alchColor();
-        } else if (lootOption==LootOption.CONSUME) {
-            return config.consumeColor();
-        } else if (lootOption==LootOption.EQUIP) {
-            return config.equipColor();
-        } else if (lootOption==LootOption.PROCESS) {
-            return config.processColor();
-        } else if (lootOption==LootOption.CARGO_HOLD) {
-            return config.cargoHoldColor();
-        } else if (lootOption==LootOption.OTHER) {
-            return config.otherColor();
-        } else {
-            return null;
-        }
-    }
 
-    private Color getColor(LootOption lootOption) {
-        return plugin.getConfigByKey(lootOption.getColorConfigKey(), Color.class);
-    }
-
-    private void setColor(LootOption lootOption, Color newColor) {
-        plugin.setConfigByKey(lootOption.getColorConfigKey(), newColor);
-    }
 }
