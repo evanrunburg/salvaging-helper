@@ -191,7 +191,7 @@ public class SalvagingHelperPanel extends PluginPanel {
         // Material Tabs
         tabGroup.addTab(generalTab);
         tabGroup.addTab(lootTab);
-        if (config.debugModeEnabled()) { tabGroup.addTab(debugTab); }
+        tabGroup.addTab(debugTab);
 
         // Don't show as navigation options, but allow linking
         extractorSettingsPanel = createExtractorSubpanel();
