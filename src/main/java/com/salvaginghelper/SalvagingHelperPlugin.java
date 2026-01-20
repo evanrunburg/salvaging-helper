@@ -1,7 +1,10 @@
 package com.salvaginghelper;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import javax.inject.Inject;
+import javax.swing.*;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -15,9 +18,7 @@ import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
-import net.runelite.client.config.ConfigManager;
-import net.runelite.client.config.Notification;
-import net.runelite.client.config.NotificationSound;
+import net.runelite.client.config.*;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
@@ -31,7 +32,9 @@ import com.salvaginghelper.Crewmate.Activity;
 import net.runelite.client.util.ImageUtil;
 
 import java.awt.*;
+import java.awt.datatransfer.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.List;
@@ -88,6 +91,8 @@ public class SalvagingHelperPlugin extends Plugin
 	public int crewmateCount = 0;
 	public Boat boat = new Boat(this);
 	public int currentXp = -1;
+
+	private Gson gson = new Gson();
 
 	// Player specific variables
 	private int[][] runePouch = new int[4][2]; // runePouch[slot]={runeType, runeQuantity}
@@ -594,7 +599,6 @@ public class SalvagingHelperPlugin extends Plugin
 			actionHandler.activeShipwrecks.clear();
 			actionHandler.objectHighlightMap.clear();
 			actionHandler.npcHighlightMap.clear();
-			//sendChatMessage("Clearing all cached objects and NPCs.", false);
 		} else if (event.getGameState()==GameState.LOGGED_IN) {
 			currentXp = client.getSkillExperience(Skill.SAILING);
 			clientThread.invokeLater( () -> {
@@ -612,12 +616,12 @@ public class SalvagingHelperPlugin extends Plugin
 				objectOverlay.disableCargoTracking();
 				ItemContainer itemContainer = client.getItemContainer(event.getGroupId());
 				if (itemContainer != null) {
-					sendChatMessage(itemContainer.toString(), true);
+					//sendChatMessage(itemContainer.toString(), true);
 					boat.setCargoQuantity(itemContainer.count());
 				}
 				Widget w = client.getSelectedWidget();
 				if (w != null) {
-					sendChatMessage(w.toString(), true);
+					//sendChatMessage(w.toString(), true);
 				}
 			}
 		}
@@ -630,12 +634,12 @@ public class SalvagingHelperPlugin extends Plugin
 			objectOverlay.enableCargoTracking();
 			ItemContainer itemContainer = client.getItemContainer(event.getGroupId());
 			if (itemContainer != null) {
-				sendChatMessage(itemContainer.toString(), true);
+				//sendChatMessage(itemContainer.toString(), true);
 				boat.setCargoQuantity(itemContainer.count());
 			}
 			Widget w = client.getSelectedWidget();
 			if (w != null) {
-				sendChatMessage(w.toString(), true);
+				//sendChatMessage(w.toString(), true);
 			}
 
 		}
@@ -741,15 +745,141 @@ public class SalvagingHelperPlugin extends Plugin
 			activeCrewmates.set(slot - 1, new Crewmate(this, config, slot - 1, newCrewmemberListId, onBoat, client, 0));
 		}
 	}
+	//endregion
 
-	// You just received an arbitrary XP drop. How many salvage entered your cargo hold?
-	private int newSalvageCount(int xpDrop) {
-		// Do we have a keg of 2.5%?
+	//region Config Helpers
+	public void copyLootToClipboard(Component comp) {
+		int itemCount = 0;
+		List<LootSetting> settingsList = new ArrayList<>();
+		for (String key : configManager.getConfigurationKeys("salvagingHelper.item_")) {
+			int itemId = parseItemId(key);
+			String configKey = "item_"+itemId;
+			LootOption lootOption = configManager.getConfiguration("salvagingHelper", configKey, LootOption.class);
+			if (lootOption != null) {
+				itemCount++;
+				settingsList.add(new LootSetting(itemId, lootOption));
+			}
+		}
+		String jsonString = gson.toJson(settingsList);
+		StringSelection stringSelection = new StringSelection(jsonString);
+		Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+		JOptionPane.showMessageDialog(comp, "Successfully copied "+itemCount+" loot settings to clipboard.");
+	}
 
-		// XP sources: salvaging, sorting, crewmate salvaging, extractor, xp lamp,
+	public void clearLootItemConfigs(Component comp) {
+		int count = 0;
 
+		for (String key : configManager.getConfigurationKeys("salvagingHelper.item_")) {
+			count++;
+			int itemId = parseItemId(key);
+			String configKey = "item_"+itemId;
+			configManager.unsetConfiguration("salvagingHelper", configKey);
+			LootItem lootItem = lootManager.getLootItem(itemId);
+			sidePanel.setItemCategory(itemId,lootItem.getDefaultLootCategory());
+		}
 
-		return -1;
+		if (count > 0) {
+			JOptionPane.showMessageDialog(comp, "Successfully cleared "+count+" loot settings.", "Reset complete", JOptionPane.INFORMATION_MESSAGE);
+		} else {
+			JOptionPane.showMessageDialog(comp, "Reset failed: no loot item settings to reset found.", "Reset failed", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	public String importFromClipboard(Component comp) {
+		Transferable clipboardContents;
+		String importString;
+		try {
+			clipboardContents = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
+		} catch (IllegalStateException e) {
+			JOptionPane.showMessageDialog(comp, "Error importing settings: unable to access clipboard.", "Import Error", JOptionPane.ERROR_MESSAGE);
+			return "";
+		}
+
+		if (clipboardContents==null) {
+			JOptionPane.showMessageDialog(comp, "Error importing settings: no content found on clipboard.", "Import Error", JOptionPane.ERROR_MESSAGE);
+			return "";
+		} else if (!clipboardContents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+			JOptionPane.showMessageDialog(comp, "Error importing settings: no valid data found.", "Import Error", JOptionPane.ERROR_MESSAGE);
+			return "";
+		}
+
+		try {
+			importString = (String) clipboardContents.getTransferData(DataFlavor.stringFlavor);
+		} catch (UnsupportedFlavorException e) {
+			JOptionPane.showMessageDialog(comp, "Error importing settings: invalid non-string data found on clipboard.", "Import Error", JOptionPane.ERROR_MESSAGE);
+			return "";
+		} catch (IOException e) {
+			JOptionPane.showMessageDialog(comp, "Error importing settings: clipboard settings data no longer available.", "Import Error", JOptionPane.ERROR_MESSAGE);
+			return "";
+		}
+
+		return (!importString.isEmpty() ? importString : "");
+	}
+
+	// Strings passed into this function have passed all the checks in importFromClipboard, so no need to re-check
+	public void processClipboardLootMessage(String jsonString, Component comp) {
+		ArrayList<LootSetting> configArray = gson.fromJson(jsonString, new TypeToken<ArrayList<LootSetting>>(){}.getType());
+
+		int success = 0;
+		int same = 0;
+		int failed = 0;
+
+		if (configArray.isEmpty()) {
+			JOptionPane.showMessageDialog(comp, "Error importing settings: no loot item settings found.", "Import Error", JOptionPane.ERROR_MESSAGE);
+		} else {
+			for (LootSetting setting : configArray) {
+				int itemId = setting.getItemId();
+				LootOption category = setting.getCategory();
+				String configKey = "item_"+itemId;
+				if (lootManager.getLootItem(itemId)==null || itemId==0 || category==null) {
+					failed++;
+					break;
+				} else {
+					LootOption currentCategory = configManager.getConfiguration("salvagingHelper", configKey, LootOption.class);
+					if (category==currentCategory) {
+						same++;
+					} else {
+						success++;
+						sidePanel.setItemCategory(itemId, category);
+					}
+				}
+			}
+			if (success>0) {
+				JOptionPane.showMessageDialog(comp, "Import finished. "+success+" items updated, "+same+" skipped, and "+failed+" failed.", "Import complete", JOptionPane.INFORMATION_MESSAGE);
+			} else {
+				JOptionPane.showMessageDialog(comp, "Import failed: "+same+" items skipped and "+failed+" failed.", "Import Error", JOptionPane.ERROR_MESSAGE);
+			}
+		}
+	}
+
+	public static class LootSetting {
+		@Getter
+		private final int itemId;
+		@Getter
+		private final LootOption category;
+		public LootSetting (int itemId, LootOption category) {
+			this.itemId = itemId;
+			this.category = category;
+		}
+	}
+
+	private int parseItemId(String configKeyString) {
+		int underscoreIndex = configKeyString.indexOf("_");
+		if (underscoreIndex==-1 || underscoreIndex==configKeyString.length()-1) {
+			return -1;
+		} else {
+			String substring = configKeyString.substring(underscoreIndex+1);
+			return Integer.parseInt(substring);
+		}
+	}
+
+	// If fetching a boolean, will return a String that needs to be handled and parsed
+	public <T> T getConfigByKey(String configKey, Type T) {
+		return configManager.getConfiguration("salvagingHelper", configKey, T);
+	}
+
+	public <T> void setConfigByKey(String configKey, T newValue) {
+		configManager.setConfiguration("salvagingHelper", configKey, newValue);
 	}
 
 	//endregion
@@ -792,14 +922,7 @@ public class SalvagingHelperPlugin extends Plugin
 		lootManager.rebuildLootColors();
 	}
 
-	// If fetching a boolean, will return a String that needs to be handled and parsed
-	public <T> T getConfigByKey(String configKey, Type T) {
-		return configManager.getConfiguration("salvagingHelper", configKey, T);
-	}
 
-	public <T> void setConfigByKey(String configKey, T newValue) {
-		configManager.setConfiguration("salvagingHelper", configKey, newValue);
-	}
 
 
 }

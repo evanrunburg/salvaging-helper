@@ -89,6 +89,8 @@ public class SalvagingHelperPanel extends PluginPanel {
     private final ImageIcon ICON_UNSET_HOVER = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_history_gray_20px.png"));
     private final ImageIcon ICON_UNSET_PRESSED = new ImageIcon(ImageUtil.loadImageResource(SalvagingHelperPlugin.class, "google_history_darkgray_20px.png"));
 
+    private final int INDEX_IDLE_PANEL = 4;
+    private final int INDEX_EXTRACTOR_PANEL = 3;
 
     private final int SIDEBAR_WIDTH = 249;
     private final int SIDEBAR_INCLUDING_SCROLL = 230;
@@ -246,8 +248,8 @@ public class SalvagingHelperPanel extends PluginPanel {
         generalSettingsContainer.add(createSettingsCheckbox("drawHookLocation", null));
         generalSettingsContainer.add(createSettingsCheckbox("enableLootOverlays", null));
         generalSettingsContainer.add(createSettingsCheckbox("swapInvItemOptions", null));
-        generalSettingsContainer.add(createSettingsCheckbox("idleAlerts", createSettingsLinkButton(4)));
-        generalSettingsContainer.add(createSettingsCheckbox("extractorAlerts", createSettingsLinkButton(3)));
+        generalSettingsContainer.add(createSettingsCheckbox("idleAlerts", createSettingsLinkButton(INDEX_IDLE_PANEL)));
+        generalSettingsContainer.add(createSettingsCheckbox("extractorAlerts", createSettingsLinkButton(INDEX_EXTRACTOR_PANEL)));
         generalSettingsContainer.add(createSettingsCheckbox("hideCrewmateOverhead", null));
         generalSettingsContainer.add(createSettingsCheckbox("hideOthersCrewmateOverhead", null));
         JPanel generalSettingsHeader = createSettingsHeader("Plugin modules", ICON_PLUGIN, generalSettingsContainer,
@@ -543,24 +545,32 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         JButton importButton = new JButton();
         importButton.setIcon(ICON_IMPORT);
-        importButton.setToolTipText("Import loot settings from clipboard [TODO]");
+        importButton.setToolTipText("Import loot settings from clipboard");
         importButton.addActionListener(e -> {
-            // TODO
+            int dialog = JOptionPane.showConfirmDialog(SwingUtilities.getWindowAncestor(lootContainer), "Are you sure you want to import loot settings from clipboard?", "Confirm import", JOptionPane.OK_CANCEL_OPTION);
+            if (dialog == JOptionPane.OK_OPTION) {
+                String jsonString = plugin.importFromClipboard(SwingUtilities.getWindowAncestor(lootContainer));
+                if (!jsonString.isEmpty()) {
+                    plugin.processClipboardLootMessage(jsonString, SwingUtilities.getWindowAncestor(lootContainer));
+                }
+            }
         });
 
         JButton exportButton = new JButton();
         exportButton.setIcon(ICON_EXPORT);
-        exportButton.setToolTipText("Copy loot settings to clipboard [TODO]");
+        exportButton.setToolTipText("Copy loot settings to clipboard");
         exportButton.addActionListener(e -> {
-            lootContainer.revalidate();
-            lootContainer.repaint();
+            plugin.copyLootToClipboard(SwingUtilities.getWindowAncestor(lootContainer));
         });
 
         JButton resetButton = new JButton();
         resetButton.setIcon(ICON_RESET);
-        resetButton.setToolTipText("Reset loot settings to plugin default [TODO]");
+        resetButton.setToolTipText("Reset loot settings to plugin default");
         resetButton.addActionListener(e -> {
-            // TODO
+            int dialog = JOptionPane.showConfirmDialog(SwingUtilities.getWindowAncestor(lootContainer), "Are you sure you want to reset all loot options to plugin defaults?", "Confirm reset", JOptionPane.OK_CANCEL_OPTION);
+            if (dialog == JOptionPane.OK_OPTION) {
+                plugin.clearLootItemConfigs(SwingUtilities.getWindowAncestor(lootContainer));
+            }
         });
 
         toolbarPanel.add(expandAllButton);
@@ -572,7 +582,6 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         contentPanel.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        //contentPanel.setMinimumSize(new Dimension(223, 500));
 
         //region Call "Create Salvage Panels" and Add
         for (SalvageType salvageType : SalvageType.values()) {
@@ -601,7 +610,6 @@ public class SalvagingHelperPanel extends PluginPanel {
 
         //region Category Panel
         containerPanel.setLayout(new BorderLayout(0, 0));
-        //containerPanel.setBorder(new EmptyBorder(0,1,0,1));
         containerPanel.setBorder(new LineBorder(Color.BLACK, 1));
 
         categorySubPanel.setLayout(new BoxLayout(categorySubPanel, BoxLayout.X_AXIS));
@@ -653,7 +661,6 @@ public class SalvagingHelperPanel extends PluginPanel {
                }
         });
         //endregion
-
 
         //region Loot Items Panel (Iterate over Salvage)
         lootItemsPanel.setBorder(new EmptyBorder(0, 0, 0, 0));

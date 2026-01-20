@@ -19,7 +19,9 @@ public class LootItem {
     @Getter
     private LootOption lootCategory;
     @Getter
-    private String name;
+    private final LootOption defaultLootCategory;
+    @Getter
+    private final String name;
     @Getter
     private final LootContainer container;
     private final ConfigManager configManager;
@@ -30,6 +32,7 @@ public class LootItem {
                     LootOption defaultLootOption, boolean canContainer, boolean canConsume, boolean canEquip,
                     boolean canProcess, boolean canCargoHold, String newName, LootContainer container) {
 
+        this.defaultLootCategory = defaultLootOption;
         this.itemId = itemId;
         this.configManager = configManager;
         this.itemIdMap = itemMap;
@@ -38,7 +41,6 @@ public class LootItem {
         LootOption savedLootOption = configManager.getConfiguration(SalvagingHelperConfig.GROUP, "item_"+itemId, LootOption.class);
         lootCategory = (savedLootOption != null) ? savedLootOption : defaultLootOption;
 
-        // Build out allowed categories - will save time later for combobox
         // ArrayList insertion order is preserved, so we need to do this in the right order for the sidepanel
         ArrayList<LootOption> allowedTemp = new ArrayList<>();
         allowedTemp.add(lootCategory);
@@ -57,11 +59,10 @@ public class LootItem {
         itemIdMap.put(itemId, this);
 
         this.name = newName;
-
     }
 
     public void updateLootCategory(LootOption newCategory) {
-        lootCategory = newCategory;
+        this.lootCategory = newCategory;
         configManager.setConfiguration(SalvagingHelperConfig.GROUP, "item_"+itemId, newCategory);
     }
 
